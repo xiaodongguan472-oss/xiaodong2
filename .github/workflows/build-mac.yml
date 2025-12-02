@@ -62,6 +62,15 @@ jobs:
         with:
           node-version: '18'
       
+      - name: Install ImageMagick
+        run: sudo apt-get install -y imagemagick
+      
+      - name: Create icon for Linux
+        run: |
+          mkdir -p build
+          # 从 ico 转换为 256x256 的 png
+          convert assets/icon.ico -resize 256x256 build/icon.png
+      
       - name: Remove Windows-only dependencies
         run: |
           # 移除 Windows 专用依赖
