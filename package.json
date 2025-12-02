@@ -80,7 +80,7 @@
       "uninstallerIcon": "assets/icon.ico"
     },
     "mac": {
-      "icon": "assets/icon.icns",
+      "icon": "assets/icon.png",
       "target": [
         {
           "target": "dmg",
