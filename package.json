@@ -4,10 +4,10 @@
   "description": "Kiro续杯工具",
   "main": "main.js",
   "scripts": {
-    "start": "chcp 65001 && electron .",
-    "start:utf8": "set NODE_OPTIONS=--max-old-space-size=4096 && chcp 65001 && electron .",
-    "dev": "chcp 65001 && electron . --dev",
-    "dev:utf8": "set NODE_OPTIONS=--max-old-space-size=4096 && chcp 65001 && electron . --dev",
+    "start": "cmd /c \"chcp 65001 >nul & electron .\"",
+    "start:utf8": "cmd /c \"chcp 65001 >nul & electron .\"",
+    "dev": "cmd /c \"chcp 65001 >nul & electron . --dev\"",
+    "dev:utf8": "cmd /c \"chcp 65001 >nul & electron . --dev\"",
     "prebuild": "node scripts/obfuscate.js",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
@@ -15,7 +15,7 @@
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "build:secure": "node scripts/secure-build.js",
-    "postinstall": "electron-rebuild"
+    "postinstall": "electron-rebuild || true"
   },
   "keywords": [
     "kiro",
@@ -27,7 +27,7 @@
   "license": "MIT",
   "devDependencies": {
     "asar": "^3.2.0",
-    "electron": "^28.0.0",
+    "electron": "^28.3.3",
     "electron-builder": "^24.13.3",
     "electron-rebuild": "^3.2.9",
     "javascript-obfuscator": "^4.1.1",
@@ -35,25 +35,21 @@
   },
   "dependencies": {
     "axios": "^0.27.2",
-    "better-sqlite3": "^8.7.0",
     "bytenode": "^1.4.0",
     "element-plus": "^2.3.8",
+    "keytar": "^7.9.0",
     "koffi": "^2.14.1",
     "node-gyp-build": "^4.6.1",
     "node-machine-id": "^1.1.12",
     "socks-proxy-agent": "^8.0.5",
     "uuid": "^9.0.0",
-    "vue": "^3.2.47",
-    "win-dpapi": "^1.1.0"
+    "vue": "^3.2.47"
   },
   "build": {
     "appId": "com.kiro.renewal",
     "productName": "Kiro续杯工具",
     "asar": true,
-    "asarUnpack": [
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/win-dpapi/**/*"
-    ],
+    "asarUnpack": [],
     "npmRebuild": false,
     "directories": {
       "output": "dist",
@@ -88,7 +84,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "artifactName": "Kiro续杯工具-${arch}.${ext}",

@@ -1,3 +1,17 @@
+// 在最开始设置Node.js输出编码为UTF-8
+if (process.platform === 'win32') {
+  // 设置环境变量
+  process.env.LANG = 'zh_CN.UTF-8';
+  process.env.LC_ALL = 'zh_CN.UTF-8';
+  // 设置标准输出编码
+  if (process.stdout && process.stdout.setDefaultEncoding) {
+    process.stdout.setDefaultEncoding('utf8');
+  }
+  if (process.stderr && process.stderr.setDefaultEncoding) {
+    process.stderr.setDefaultEncoding('utf8');
+  }
+}
+
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -24,16 +38,7 @@ const { safeModifyFile } = require('./file-permission-utils');
 // const RuntimeProtection = require('./scripts/runtime-protection');
 // let protection;
 
-let Database;
-
-try {
-  Database = require('better-sqlite3');
-  console.log('better-sqlite3模块加载成功');
-} catch (err) {
-  console.error('better-sqlite3模块加载失败:', err.message);
-  console.warn('部分功能可能无法正常工作，请安装必要的依赖: npm install better-sqlite3');
-  // 不退出应用，继续执行，但在使用Database的地方要检查模块是否存在
-}
+// better-sqlite3 已移除，换号逻辑改为修改 kiro-auth-token.json 文件
 
 // 是否是开发环境
 const isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
@@ -238,25 +243,23 @@ function setupConsoleEncoding() {
         process.stderr.setDefaultEncoding('utf8');
       }
 
-      // 尝试执行chcp命令设置控制台代码页为UTF-8
-      const { exec } = require('child_process');
-      exec('chcp 65001', (error) => {
-        if (error) {
-          logUTF8('设置控制台编码为UTF-8失败，但这不会影响应用运行');
-        } else {
-          logUTF8('控制台编码已设置为UTF-8');
-        }
-      });
+      // 同步执行chcp命令设置控制台代码页为UTF-8
+      const { execSync } = require('child_process');
+      try {
+        execSync('chcp 65001', { stdio: 'ignore' });
+        originalConsoleLog('控制台编码已设置为UTF-8');
+      } catch (chcpError) {
+        // chcp失败不影响应用运行
+      }
     }
 
     // 设置Node.js的默认编码
-    if (isDev) {
-      process.env.LANG = 'zh_CN.UTF-8';
-    }
+    process.env.LANG = 'zh_CN.UTF-8';
+    process.env.LC_ALL = 'zh_CN.UTF-8';
 
-    logUTF8('控制台编码设置完成');
+    originalConsoleLog('控制台编码设置完成');
   } catch (error) {
-    logUTF8('控制台编码设置失败: ' + error.message);
+    originalConsoleLog('控制台编码设置失败: ' + error.message);
   }
 }
 
@@ -1980,202 +1983,10 @@ function generateNewIds() {
   };
 }
 
-// 更新SQLite数据库中的ID
-ipcMain.handle('update-Kiro-sqlite-db', async (event, dbPath) => {
-  try {
-    if (!fs.existsSync(dbPath)) {
-      return { success: true, message: '数据库文件不存在，跳过更新' };
-    }
-
-    // 生成新的ID
-    const newIds = generateNewIds();
-
-    // 创建备份
-    const backupPath = `${dbPath}.bak`;
-    if (!fs.existsSync(backupPath)) {
-      fs.copyFileSync(dbPath, backupPath);
-      console.log(`已创建数据库备份: ${backupPath}`);
-    }
-
-    const db = new Database(dbPath);
-
-      // 检查表是否存在
-      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
-      if (!tableCheck) {
-        db.close();
-        return { success: true, message: 'ItemTable表不存在，跳过更新' };
-      }
-
-      // 开始更新
-      const updatedKeys = [];
-      const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
-      const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
-      const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
-
-      // 开始事务
-      const transaction = db.transaction(() => {
-        // 对每个ID进行更新或插入
-        Object.entries(newIds).forEach(([key, value]) => {
-          try {
-            const row = countStmt.get(key);
-
-            if (row && row.count > 0) {
-              updateStmt.run(value, key);
-              updatedKeys.push(key);
-              console.log(`更新键${key} -> ${value}`);
-            } else {
-              insertStmt.run(key, value);
-              updatedKeys.push(key);
-              console.log(`插入键${key} -> ${value}`);
-            }
-          } catch (err) {
-            console.error(`处理键${key}失败:`, err);
-          }
-        });
-      });
-
-      transaction();
-      db.close();
-
-    return {
-      success: true,
-      message: '数据库更新成功',
-      updatedKeys,
-      newIds
-    };
-  } catch (error) {
-    console.error('更新SQLite数据库失败:', error);
-    return { success: false, error: error.message };
-  }
-});
-
 // 重置机器ID文件 - 修复版本，基于参考代码
 ipcMain.handle('reset-Kiro-machine-id', async () => {
   return await resetStorageMachineIds();
 });
-
-// 保存Kiro当前工作区路径
-async function saveCurrentWorkspace(dbPath) {
-  try {
-    console.log('正在保存当前Kiro工作区路径...');
-
-    // 确保数据库存在
-    if (!fs.existsSync(dbPath)) {
-      console.warn('数据库文件不存在，无法保存工作区');
-      return { success: false, error: '数据库文件不存在' };
-    }
-
-    // 连接数据库读取工作区信息
-    const db = new Database(dbPath, { readonly: true });
-
-    // 查询最近打开的文件夹/工作区
-    const workspaceQuery = db.prepare("SELECT value FROM ItemTable WHERE key = ?");
-
-    // 尝试多个可能的键
-    const possibleKeys = [
-      'workbench.panel.recentlyOpenedPathsList',
-      'history.recentlyOpenedPathsList',
-      'openedPathsList.entries',
-      'workspaces.recentlyOpened'
-    ];
-
-    let workspaceData = null;
-    let usedKey = null;
-
-    for (const key of possibleKeys) {
-      const result = workspaceQuery.get(key);
-      if (result && result.value) {
-        workspaceData = result.value;
-        usedKey = key;
-        console.log(`✓ 找到工作区数据，使用键: ${key}`);
-        break;
-      }
-    }
-
-    db.close();
-
-    if (!workspaceData) {
-      console.warn('未找到工作区信息');
-      return { success: false, error: '未找到工作区信息' };
-    }
-
-    // 解析工作区数据
-    let workspace = null;
-    try {
-      const parsed = JSON.parse(workspaceData);
-
-      // 提取第一个工作区路径（最近使用的）
-      if (parsed.entries && Array.isArray(parsed.entries) && parsed.entries.length > 0) {
-        const firstEntry = parsed.entries[0];
-        let rawPath = null;
-
-        if (firstEntry.folderUri) {
-          rawPath = firstEntry.folderUri;
-        } else if (firstEntry.workspace && firstEntry.workspace.configPath) {
-          rawPath = firstEntry.workspace.configPath;
-        }
-
-        if (rawPath) {
-          // 处理 file:/// 格式的路径
-          if (rawPath.startsWith('file:///')) {
-            rawPath = rawPath.substring(8); // 去掉 file:///
-          } else if (rawPath.startsWith('file://')) {
-            rawPath = rawPath.substring(7); // 去掉 file://
-          }
-
-          // URL解码（处理中文和特殊字符，如 d%3A -> d:, %E5%8D%A1 -> 卡）
-          try {
-            workspace = decodeURIComponent(rawPath);
-          } catch (decodeError) {
-            console.warn('URL解码失败，使用原始路径:', decodeError);
-            workspace = rawPath;
-          }
-
-          // 统一路径分隔符为反斜杠（Windows）
-          if (process.platform === 'win32') {
-            workspace = workspace.replace(/\//g, '\\');
-            // 确保盘符是大写
-            if (workspace.length > 1 && workspace[1] === ':') {
-              workspace = workspace[0].toUpperCase() + workspace.substring(1);
-            }
-          }
-
-          console.log(`✓ 原始URI: ${firstEntry.folderUri || firstEntry.workspace?.configPath}`);
-          console.log(`✓ 解码后路径: ${workspace}`);
-        }
-      }
-    } catch (parseError) {
-      console.warn('⚠ 解析工作区数据失败:', parseError);
-    }
-
-    if (!workspace) {
-      console.warn('⚠ 无法提取工作区路径');
-      return { success: false, error: '无法提取工作区路径' };
-    }
-
-    // 保存到globalStorage文件夹
-    const globalStoragePath = path.join(path.dirname(dbPath), 'workspace-backup.json');
-    const backupData = {
-      workspace: workspace,
-      timestamp: new Date().toISOString(),
-      dbPath: dbPath
-    };
-
-    fs.writeFileSync(globalStoragePath, JSON.stringify(backupData, null, 2), 'utf8');
-    console.log(`✓ 工作区路径已保存到: ${globalStoragePath}`);
-    console.log(`✓ 保存的工作区: ${workspace}`);
-
-    return {
-      success: true,
-      workspace: workspace,
-      backupPath: globalStoragePath
-    };
-
-  } catch (error) {
-    console.error('保存工作区路径失败:', error);
-    return { success: false, error: error.message };
-  }
-}
 
 // 读取保存的工作区路径
 async function loadSavedWorkspace(dbPath) {
@@ -2348,7 +2159,8 @@ function checkKiroRunning() {
         });
       });
     } else if (process.platform === 'darwin') {
-      exec('pgrep -f Kiro', (error, stdout) => {
+      // macOS - 检查 Kiro.app 相关进程
+      exec('pgrep -f "Kiro.app"', (error, stdout) => {
         resolve(!error && stdout.trim().length > 0);
       });
     } else {
@@ -2376,8 +2188,9 @@ ipcMain.handle('force-close-Kiro', async () => {
 
     // 第二步：执行关闭命令
     return new Promise((resolve) => {
+      // macOS 使用 pkill -9 -f 匹配完整命令行，确保杀死所有 Kiro.app 相关进程
       const killCommand = process.platform === 'win32' ? 'taskkill /F /IM Kiro.exe' :
-                         process.platform === 'darwin' ? 'pkill -9 Kiro' : 'pkill -9 Kiro';
+                         process.platform === 'darwin' ? 'pkill -9 -f "Kiro.app"' : 'pkill -9 -f Kiro';
       
       exec(killCommand, async (error, stdout, stderr) => {
         if (error) {
@@ -2475,11 +2288,11 @@ ipcMain.handle('restart-Kiro-complete', async () => {
             resolve({ success: !error });
           });
         } else if (process.platform === 'darwin') {
-          exec('pkill -9 Kiro', (error) => {
+          exec('pkill -9 -f "Kiro.app"', (error) => {
             resolve({ success: !error });
           });
         } else {
-          exec('pkill -9 Kiro', (error) => {
+          exec('pkill -9 -f Kiro', (error) => {
             resolve({ success: !error });
           });
         }
@@ -2571,11 +2384,6 @@ ipcMain.handle('restart-Kiro-complete', async () => {
     console.error('Kiro重启流程失败:', error);
     return { success: false, error: error.message };
   }
-});
-
-// 保存当前工作区路径（IPC处理器）
-ipcMain.handle('save-current-workspace', async (event, dbPath) => {
-  return await saveCurrentWorkspace(dbPath);
 });
 
 // 读取保存的工作区路径（IPC处理器）
@@ -2679,8 +2487,7 @@ ipcMain.handle('set-Kiro-default-model', async (event, model = 'claude-3.5-sonne
     console.log(`正在设置Kiro默认AI模型为: ${model}`);
 
     const results = {
-      settingsFile: { attempted: false, success: false, path: '', error: null },
-      database: { attempted: false, success: false, path: '', error: null, updatedKeys: [] }
+      settingsFile: { attempted: false, success: false, path: '', error: null }
     };
 
     // 方法1: 尝试修改settings.json文件
@@ -2751,101 +2558,8 @@ ipcMain.handle('set-Kiro-default-model', async (event, model = 'claude-3.5-sonne
       results.settingsFile.error = settingsError.message;
     }
 
-    // 方法2: 尝试修改数据库
-    try {
-      let dbPath = '';
-      if (process.platform === 'win32') {
-        dbPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Kiro', 'User', 'globalStorage', 'state.vscdb');
-      } else if (process.platform === 'darwin') {
-        dbPath = path.join(os.homedir(), 'Library', 'Application Support', 'Kiro', 'User', 'globalStorage', 'state.vscdb');
-      } else {
-        dbPath = path.join(os.homedir(), '.config', 'Kiro', 'User', 'globalStorage', 'state.vscdb');
-      }
-
-      results.database.attempted = true;
-      results.database.path = dbPath;
-
-      if (fs.existsSync(dbPath) && Database) {
-        console.log(`尝试修改数据库: ${dbPath}`);
-
-        const dbResult = (() => {
-          try {
-            const db = new Database(dbPath);
-
-            // 检查表是否存在
-            const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
-            if (!tableCheck) {
-              db.close();
-              return { success: false, error: 'ItemTable表不存在' };
-            }
-
-            // 尝试设置多种可能的模型键
-            const modelKeys = [
-              'Kiro.chat.defaultModel',
-              'Kiro.general.defaultModel',
-              'Kiro.defaultModel',
-              'chat.defaultModel',
-              'ai.defaultModel',
-              'workbench.chat.defaultModel',
-              'vscode.chat.defaultModel'
-            ];
-
-            const updatedKeys = [];
-            const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
-            const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
-            const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
-
-            // 开始事务
-            const transaction = db.transaction(() => {
-              for (const key of modelKeys) {
-                try {
-                  const row = countStmt.get(key);
-
-                  if (row && row.count > 0) {
-                    // 更新现有键
-                    updateStmt.run(model, key);
-                    updatedKeys.push(key);
-                    console.log(`更新键${key} -> ${model}`);
-                  } else {
-                    // 插入新键
-                    insertStmt.run(key, model);
-                    updatedKeys.push(key);
-                    console.log(`插入键${key} -> ${model}`);
-                  }
-                } catch (err) {
-                  console.error(`处理键${key}失败:`, err);
-                }
-              }
-            });
-
-            transaction();
-            db.close();
-
-            return {
-              success: true,
-              updatedKeys,
-              message: `数据库更新成功，更新了${updatedKeys.length}个键`
-            };
-          } catch (error) {
-            return { success: false, error: `数据库操作失败: ${error.message}` };
-          }
-        })();
-
-        results.database.success = dbResult.success;
-        results.database.error = dbResult.error;
-        results.database.updatedKeys = dbResult.updatedKeys || [];
-
-      } else {
-        results.database.error = '数据库文件不存在或better-sqlite3模块未加载';
-      }
-
-    } catch (dbError) {
-      console.error('修改数据库失败:', dbError);
-      results.database.error = dbError.message;
-    }
-
-    // 判断整体成功状态
-    const overallSuccess = results.settingsFile.success || results.database.success;
+    // 判断整体成功状态（仅基于settings.json修改结果）
+    const overallSuccess = results.settingsFile.success;
 
     return {
       success: overallSuccess,
@@ -2897,7 +2611,7 @@ ipcMain.handle('restart-Kiro', async (event, KiroPath) => {
 
       // 先关闭现有的Kiro进程
       const { exec } = require('child_process');
-      exec('pkill -9 Kiro', (error) => {
+      exec('pkill -9 -f "Kiro.app"', (error) => {
         if (error) {
           console.log('没有运行中的Kiro进程或无法关闭进程');
         } else {
@@ -2923,7 +2637,7 @@ ipcMain.handle('restart-Kiro', async (event, KiroPath) => {
 
       // 先关闭现有的Kiro进程
       const { exec } = require('child_process');
-      exec('pkill -9 Kiro', (error) => {
+      exec('pkill -9 -f Kiro', (error) => {
         if (error) {
           console.log('没有运行中的Kiro进程或无法关闭进程');
         } else {
@@ -2950,91 +2664,6 @@ ipcMain.handle('restart-Kiro', async (event, KiroPath) => {
   } catch (error) {
     console.error(`重启Kiro失败: ${error.message}`);
     return false;
-  }
-});
-
-// 退出当前Kiro登录账号
-ipcMain.handle('logout-current-Kiro-account', async (event, dbPath) => {
-  try {
-    console.log('=== 开始退出当前Kiro登录账号 ===');
-    console.log(`数据库路径: ${dbPath}`);
-
-    if (!dbPath) {
-      return { success: false, error: '数据库路径不能为空' };
-    }
-
-    if (!fs.existsSync(dbPath)) {
-      return { success: false, error: `数据库文件不存在: ${dbPath}` };
-    }
-
-    // 确保better-sqlite3模块已加载
-    if (!Database) {
-      return { success: false, error: 'better-sqlite3模块未正确加载，请检查依赖安装' };
-    }
-
-    try {
-      // 连接数据库
-      console.log('正在连接数据库...');
-      const db = new Database(dbPath);
-      console.log('已成功连接到数据库');
-
-      // 检查表是否存在
-      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
-      if (!tableCheck) {
-        db.close();
-        return { success: false, error: 'ItemTable表不存在' };
-      }
-
-      // 要清除的认证相关键值
-      const keysToDelete = [
-        'KiroAuth/cachedEmail',
-        'KiroAuth/accessToken',
-        'KiroAuth/refreshToken',
-        'KiroAuth/cachedSignUpType',
-        'Kiroai/featureStatusCache',
-        'Kiroai/featureConfigCache',
-        'KiroAuth/stripeMembershipType',
-        'Kiroai/serverConfig',
-        'auth/user',
-        'auth/session',
-        'vscode.chat.access-token'
-      ];
-
-      const deletedKeys = [];
-      const deleteStmt = db.prepare("DELETE FROM ItemTable WHERE key = ?");
-
-      // 开始事务
-      const transaction = db.transaction(() => {
-        for (const key of keysToDelete) {
-          try {
-            const result = deleteStmt.run(key);
-            if (result.changes > 0) {
-              deletedKeys.push(key);
-              console.log(`已删除登录信息键: ${key}`);
-            }
-          } catch (err) {
-            console.warn(`删除键${key}失败:`, err);
-          }
-        }
-      });
-
-      transaction();
-      db.close();
-
-      console.log(`退出登录完成，共清除${deletedKeys.length}个登录信息键`);
-
-      return {
-        success: true,
-        message: '成功退出当前登录账号',
-        deletedKeys
-      };
-    } catch (error) {
-      console.error('数据库操作失败:', error);
-      return { success: false, error: `数据库操作失败: ${error.message}` };
-    }
-  } catch (error) {
-    console.error('退出登录失败:', error);
-    return { success: false, error: error.message };
   }
 });
 
@@ -3153,336 +2782,6 @@ ipcMain.handle('windsurf-account-switch', async (event, email, refreshToken, cli
       success: false,
       error: error.message
     };
-  }
-});
-
-// 基于Python项目逻辑的账号切换功能（已废弃，保留用于兼容）
-ipcMain.handle('python-style-account-switch', async (event, dbPath, email, access_token, refresh_token) => {
-  try {
-    console.log('========================================');
-    console.log('=== Python风格账号切换开始 ===');
-    console.log('========================================');
-    console.log(`数据库路径: ${dbPath}`);
-    console.log(`用户邮箱: ${email}`);
-    console.log(`access_token长度: ${access_token ? access_token.length : 0}`);
-    console.log(`refresh_token长度: ${refresh_token ? refresh_token.length : 0}`);
-
-    // 参数验证
-    if (!dbPath) {
-      return { success: false, error: '数据库路径不能为空' };
-    }
-
-    if (!email) {
-      return { success: false, error: '邮箱不能为空' };
-    }
-
-    if (!access_token) {
-      return { success: false, error: 'access_token不能为空' };
-    }
-
-    if (!refresh_token) {
-      return { success: false, error: 'refresh_token不能为空' };
-    }
-
-    if (!fs.existsSync(dbPath)) {
-      return { success: false, error: `数据库文件不存在: ${dbPath}` };
-    }
-
-    // 确保better-sqlite3模块已加载
-    if (!Database) {
-      return { success: false, error: 'better-sqlite3模块未正确加载，请检查依赖安装' };
-    }
-
-    // 创建数据库备份
-    const backupPath = `${dbPath}.bak`;
-    if (!fs.existsSync(backupPath)) {
-      try {
-        fs.copyFileSync(dbPath, backupPath);
-        console.log(`已创建数据库备份: ${backupPath}`);
-      } catch (backupError) {
-        console.warn(`创建备份失败，但将继续执行: ${backupError.message}`);
-      }
-    }
-
-    // ========== 子步骤1：重置机器ID（重要：每次刷新Kiro时都要重置机器码）==========
-    try {
-      console.log('');
-      console.log('---------- 子步骤1：重置机器ID ----------');
-      console.log('开始重置机器ID...');
-
-      // 获取正确的Kiro目录路径（支持自定义路径）
-      let windsurfDir;
-
-      // 首先尝试从设置中获取自定义路径
-      try {
-        const settings = loadSettings();
-        console.log('加载设置:', settings);
-        if (settings && settings.customKiroPath && fs.existsSync(settings.customKiroPath)) {
-          windsurfDir = settings.customKiroPath;
-          console.log(`✓ 使用自定义Kiro路径: ${windsurfDir}`);
-        } else {
-          // 使用默认路径
-          if (process.platform === 'win32') {
-            windsurfDir = path.join(process.env.APPDATA, 'Kiro');
-          } else if (process.platform === 'darwin') {
-            windsurfDir = path.join(process.env.HOME, 'Library', 'Application Support', 'Kiro');
-          } else {
-            windsurfDir = path.join(process.env.HOME, '.config', 'Kiro');
-          }
-          console.log(`✓ 使用默认Kiro路径: ${windsurfDir}`);
-        }
-      } catch (settingsError) {
-        console.warn(`⚠ 读取设置失败，使用默认路径: ${settingsError.message}`);
-        // 使用默认路径
-        if (process.platform === 'win32') {
-          windsurfDir = path.join(process.env.APPDATA, 'Kiro');
-        } else if (process.platform === 'darwin') {
-          windsurfDir = path.join(process.env.HOME, 'Library', 'Application Support', 'Kiro');
-        } else {
-          windsurfDir = path.join(process.env.HOME, '.config', 'Kiro');
-        }
-        console.log(`✓ 使用默认Kiro路径: ${windsurfDir}`);
-      }
-
-      console.log(`Kiro目录路径: ${windsurfDir}`);
-
-      // 1.1 重置storage.json中的机器码（重要：按照用户要求的格式）
-      console.log('正在重置storage.json中的机器码...');
-      try {
-        const storageResetResult = await resetStorageMachineIds();
-        if (storageResetResult.success) {
-          console.log('✓ storage.json机器码重置成功');
-          console.log('新的机器码:', storageResetResult.newIds);
-        } else {
-          console.warn('⚠ storage.json重置失败:', storageResetResult.error);
-        }
-      } catch (storageError) {
-        console.warn('⚠ storage.json重置过程中出错:', storageError.message);
-      }
-
-      // 1.2 同时保留原有的机器ID文件重置（兼容性）
-      await resetMachineIds(windsurfDir);
-      console.log('✓ 机器ID文件重置成功');
-
-      // 1.3 重置Windows注册表中的MachineGuid（仅在Windows平台）
-      if (process.platform === 'win32') {
-        console.log('正在重置Windows注册表MachineGuid...');
-        try {
-          const registryResult = await resetMachineGuid();
-          if (registryResult.success) {
-            console.log(`✓ 注册表MachineGuid重置成功: ${registryResult.oldValue} -> ${registryResult.newValue}`);
-          } else {
-            console.warn(`⚠ 注册表MachineGuid重置失败: ${registryResult.error}`);
-          }
-        } catch (registryError) {
-          console.warn(`⚠ 注册表重置过程中出错: ${registryError.message}`);
-        }
-      } else {
-        console.log('非Windows平台，跳过注册表重置');
-      }
-
-      console.log('✓ 机器ID重置完成');
-    } catch (resetError) {
-      console.warn(`⚠ 重置机器ID过程中出错: ${resetError.message}`);
-      // 不中断流程，继续执行
-    }
-
-    try {
-      // ========== 子步骤2：更新数据库认证信息 ==========
-      console.log('');
-      console.log('---------- 子步骤2：更新数据库认证信息 ----------');
-      console.log('正在连接数据库...');
-      const db = new Database(dbPath);
-      console.log('✓ 已成功连接到数据库');
-
-      // 检查表是否存在
-      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
-      if (!tableCheck) {
-        db.close();
-        return { success: false, error: 'ItemTable表不存在' };
-      }
-
-      // 注意：serverConfig等登录信息的清理已经在logout-current-Kiro-account中完成
-
-      // 设置要更新的键值对（基于Python项目的逻辑）
-      const updates = [];
-      if (email) {
-        updates.push(["KiroAuth/cachedEmail", email]);
-      }
-      if (access_token) {
-        updates.push(["KiroAuth/accessToken", access_token]);
-      }
-      if (refresh_token) {
-        updates.push(["KiroAuth/refreshToken", refresh_token]);
-        updates.push(["KiroAuth/cachedSignUpType", "Auth_0"]);
-      }
-
-      const updatedKeys = [];
-      const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
-      const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
-      const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
-
-      // 开始事务
-      const transaction = db.transaction(() => {
-        for (const [key, value] of updates) {
-          try {
-            const row = countStmt.get(key);
-
-            if (row && row.count > 0) {
-              updateStmt.run(value, key);
-              updatedKeys.push(key);
-              console.log(`✓ 更新键${key} -> ${value}`);
-            } else {
-              insertStmt.run(key, value);
-              updatedKeys.push(key);
-              console.log(`✓ 插入键${key} -> ${value}`);
-            }
-          } catch (err) {
-            console.error(`✗ 处理键${key}失败:`, err);
-            throw err; // 让事务回滚
-          }
-        }
-      });
-
-      transaction();
-      db.close();
-
-      console.log('✓ 数据库更新完成');
-      console.log('========================================');
-      console.log('=== Python风格账号切换完成 ===');
-      console.log('========================================');
-
-      return {
-        success: true,
-        message: 'Python风格账号切换成功',
-        updatedKeys,
-        activationSuccess: true
-      };
-    } catch (error) {
-      console.error('✗ 数据库操作失败:', error);
-      return { success: false, error: `数据库操作失败: ${error.message}` };
-    }
-  } catch (error) {
-    console.error('✗ Python风格账号切换失败:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-// 更新Kiro的认证信息
-ipcMain.handle('update-Kiro-auth', async (event, dbPath, email, access_token, refresh_token, machineIdReset = true) => {
-  try {
-    if (!fs.existsSync(dbPath)) {
-      return { success: false, error: '数据库文件不存在' };
-    }
-
-    console.log('正在更新Kiro认证信息...');
-    console.log(`数据库路径: ${dbPath}`);
-    console.log(`用户邮箱: ${email}`);
-
-    // 确保better-sqlite3模块已加载
-    if (!Database) {
-      return { success: false, error: 'better-sqlite3模块未正确加载' };
-    }
-
-    // 创建数据库备份
-    const backupPath = `${dbPath}.bak`;
-    if (!fs.existsSync(backupPath)) {
-      try {
-        fs.copyFileSync(dbPath, backupPath);
-        console.log(`已创建数据库备份: ${backupPath}`);
-      } catch (backupError) {
-        console.warn(`创建备份失败，但将继续执行: ${backupError.message}`);
-        // 不中断流程，继续执行
-      }
-    }
-
-    // 重置机器ID部分
-    if (machineIdReset) {
-      try {
-        console.log('开始重置机器ID...');
-        await resetMachineIds(path.dirname(path.dirname(dbPath)));
-      } catch (resetError) {
-        console.warn(`重置机器ID过程中出错: ${resetError.message}`);
-        // 不中断流程，继续执行
-      }
-    }
-
-    try {
-      // 连接数据库
-      const db = new Database(dbPath);
-      console.log('已连接到数据库');
-
-      // 检查表是否存在
-      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
-      if (!tableCheck) {
-        db.close();
-        return { success: false, error: 'ItemTable表不存在' };
-      }
-
-      // 设置要更新的键值对
-      const updates = [];
-      if (email) {
-        updates.push(["KiroAuth/cachedEmail", email]);
-      }
-      if (access_token) {
-        updates.push(["KiroAuth/accessToken", access_token]);
-      }
-      if (refresh_token) {
-        updates.push(["KiroAuth/refreshToken", refresh_token]);
-        updates.push(["KiroAuth/cachedSignUpType", "Auth_0"]);
-      }
-
-      // 首先尝试删除serverConfig配置，这是激活新账号所必需的
-      try {
-        const deleteStmt = db.prepare("DELETE FROM ItemTable WHERE key = ?");
-        deleteStmt.run("Kiroai/serverConfig");
-        console.log('尝试删除Kiroai/serverConfig，准备激活新账号');
-      } catch (err) {
-        console.log('删除Kiroai/serverConfig失败或记录不存在，继续执行');
-      }
-
-      const updatedKeys = [];
-      const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
-      const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
-      const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
-
-      // 开始事务
-      const transaction = db.transaction(() => {
-        for (const [key, value] of updates) {
-          try {
-            const row = countStmt.get(key);
-
-            if (row && row.count > 0) {
-              updateStmt.run(value, key);
-              updatedKeys.push(key);
-              console.log(`更新键${key} -> ${value}`);
-            } else {
-              insertStmt.run(key, value);
-              updatedKeys.push(key);
-              console.log(`插入键${key} -> ${value}`);
-            }
-          } catch (err) {
-            console.error(`处理键${key}失败:`, err);
-            throw err; // 让事务回滚
-          }
-        }
-      });
-
-      transaction();
-      db.close();
-
-      return {
-        success: true,
-        message: '认证信息更新成功',
-        updatedKeys
-      };
-    } catch (error) {
-      console.error('数据库操作失败:', error);
-      return { success: false, error: `数据库操作失败: ${error.message}` };
-    }
-  } catch (error) {
-    console.error('更新认证信息失败:', error);
-    return { success: false, error: error.message };
   }
 });
 

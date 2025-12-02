@@ -3142,10 +3142,7 @@
               this.remainingAccounts = (cardInfo.total_count || 50) - this.usedAccounts;
               this.expiryTime = cardInfo.end || cardInfo.expire_time || '未设置';
 
-              // 用于保存工作区路径的变量（贯穿整个流程）
-              let savedWorkspace = null;
-
-              // ========== 【重要】第一步：搜索数据库并保存工作区 ==========
+              // ========== 【重要】第一步：搜索数据库 ==========
               this.stepStatus[1] = 'processing';
               console.log('========== 步骤1：搜索数据库并保存工作区 ==========');
               console.log('正在搜索Kiro数据库...');
@@ -3190,28 +3187,14 @@
                 }
               }
 
-              // ========== 步骤2：保存工作区并关闭Kiro ==========
-              console.log('========== 步骤2：保存工作区并关闭Kiro ==========');
+              // ========== 步骤2：关闭Kiro ==========
+              console.log('========== 步骤2：关闭Kiro ==========');
               
               try {
                 const isRunning = await ipcRenderer.invoke('check-Kiro-running');
 
                 if (isRunning) {
                   console.log('✓ 检测到Kiro正在运行');
-                  
-                  // 在关闭前，先保存当前工作区路径
-                  console.log('正在保存当前工作区路径...');
-                  try {
-                    const saveResult = await ipcRenderer.invoke('save-current-workspace', selectedDatabase.path);
-                    if (saveResult.success) {
-                      savedWorkspace = saveResult.workspace;
-                      console.log(`✓ 工作区路径已保存: ${savedWorkspace}`);
-                    } else {
-                      console.warn('⚠ 保存工作区失败:', saveResult.error);
-                    }
-                  } catch (saveError) {
-                    console.warn('⚠ 保存工作区时出错:', saveError);
-                  }
                   
                   // 现在关闭Kiro（会循环检测直到所有进程完全关闭）
                   console.log('正在强制关闭Kiro（将确保所有进程完全关闭）...');
@@ -3313,31 +3296,12 @@
                 console.log('等待1秒以确保所有文件保存...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // 如果之前没有保存工作区（Kiro未运行），尝试从文件读取
-                if (!savedWorkspace) {
-                  console.log('尝试从备份文件读取工作区路径...');
-                  try {
-                    const loadResult = await ipcRenderer.invoke('load-saved-workspace', selectedDatabase.path);
-                    if (loadResult.success && loadResult.workspace) {
-                      savedWorkspace = loadResult.workspace;
-                      console.log(`✓ 从备份读取到工作区: ${savedWorkspace}`);
-                    }
-                  } catch (loadError) {
-                    console.warn('⚠ 读取工作区备份失败:', loadError);
-                  }
-                }
-                
-                // 启动Kiro，如果有保存的工作区则使用
-                const launchResult = await ipcRenderer.invoke('launch-Kiro', savedWorkspace);
+                // 启动Kiro
+                const launchResult = await ipcRenderer.invoke('launch-Kiro', null);
 
                 if (launchResult.success) {
-                  if (savedWorkspace) {
-                    console.log('✓ Kiro启动成功（已恢复工作区）');
-                    ElMessage.success(`🎉 续杯成功！Kiro已启动并恢复到项目`);
-                  } else {
-                    console.log('✓ Kiro启动成功');
-                    ElMessage.success('🎉 续杯成功！Kiro已启动并应用新账号');
-                  }
+                  console.log('✓ Kiro启动成功');
+                  ElMessage.success('🎉 续杯成功！Kiro已启动并应用新账号');
                 } else {
                   console.error('✗ Kiro启动失败:', launchResult.error);
                   ElMessage.warning(`续杯成功！但Kiro启动失败: ${launchResult.error}，请手动启动Kiro`);
@@ -3367,11 +3331,7 @@
 
               // 检测错误类型并显示相应提示
               // 注意：卡密验证失败已在上面处理，这里只处理其他类型错误
-              if (error.message && error.message.includes('Could not locate the bindings file')) {
-                // better-sqlite3权限相关错误
-                console.log('检测到better-sqlite3权限错误，显示管理员权限提示');
-                this.showPermissionAlert = true;
-              } else if (error.message && (
+              if (error.message && (
                 error.message.includes('数据库文件不存在') || 
                 error.message.includes('未找到任何Kiro数据库文件') ||
                 error.message.includes('请确保Kiro已正确安装并至少运行过一次')
