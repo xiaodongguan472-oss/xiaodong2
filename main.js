@@ -8,7 +8,16 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const https = require('https');
 const http = require('http');
-const { resetMachineGuid } = require('./regedit-utils');
+// Windows 注册表工具（仅 Windows 平台加载）
+let resetMachineGuid = null;
+if (process.platform === 'win32') {
+  try {
+    const regeditUtils = require('./regedit-utils');
+    resetMachineGuid = regeditUtils.resetMachineGuid;
+  } catch (e) {
+    console.warn('regedit-utils 加载失败:', e.message);
+  }
+}
 const { safeModifyFile } = require('./file-permission-utils');
 
 // 运行时保护 (已禁用，避免模块缺失错误)
