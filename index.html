@@ -1,0 +1,4321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiro续杯工具</title>
+  <script>
+    // 检查是否为生产环境并加载对应的CSS
+    if (process.env.NODE_ENV === 'production' || window.process?.env?.NODE_ENV === 'production') {
+      // 生产环境使用本地文件
+      document.write('<link rel="stylesheet" href="./element-plus.css">');
+    } else {
+      // 开发环境使用CDN
+      document.write('<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">');
+    }
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* 性能优化 */
+    * {
+      will-change: auto;
+    }
+
+    .app-icon,
+    .step-number,
+    .secondary-button,
+    .action-button,
+    .notice-refresh-btn {
+      will-change: transform;
+    }
+
+    /* 启用硬件加速 */
+    .step-card,
+    .right-panel,
+    .dialog-content {
+      transform: translateZ(0);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
+      color: #f1f5f9;
+      overflow: hidden;
+      height: 100vh;
+      position: relative;
+    }
+    /* 添加背景光晕效果 */
+    body::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      left: 20%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    #app {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px; /* 减小外边距 */
+      box-sizing: border-box;
+      position: relative;
+      z-index: 1;
+      margin-top: 30px;
+      height: calc(100vh - 30px);
+      overflow: hidden; /* 禁止应用级滚动 */
+    }
+    /* 移除所有过渡动画 */
+    * {
+      transition: none !important;
+      transform: none !important;
+      animation: none !important;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding: 16px 24px;
+      background: rgba(30, 41, 59, 0.75); /* 稍微加深与下方区分 */
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.45); /* 更清晰边框 */
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .app-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      margin-right: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    /* 移除复杂动画以提升性能 */
+    .app-info h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .app-info .version {
+      font-size: 14px;
+      /* 颜色由Vue动态控制：红色(有更新)、绿色(最新)、紫色(超前) */
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      gap: 24px;
+      min-height: 0;
+      overflow: hidden;
+      align-items: stretch; /* 确保左右面板高度一致 */
+    }
+    .left-panel {
+      flex: 1;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between; /* 平均分布内容 */
+      gap: 16px;
+    }
+    .steps-container {
+      flex: 1; /* 占据剩余空间 */
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .right-panel {
+      flex: 1;
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    /* 隐藏滚动条但保留功能 */
+    .right-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+    .right-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    .step-card {
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(20px);
+      border-radius: 18px;
+      padding: 18px 24px;
+      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: visible;
+      z-index: 5;
+    }
+    .step-card:hover {
+      background: rgba(30, 41, 59, 0.6);
+      border-color: rgba(148, 163, 184, 0.4);
+    }
+    .step-number {
+      position: absolute;
+      top: 12px;
+      left: 24px;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 3px solid rgba(30, 41, 59, 0.5);
+    }
+    .step-number.completed {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .step-number.processing {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    .step-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 10px;
+      margin-top: 12px;
+      margin-left: 60px;
+      letter-spacing: -0.3px;
+    }
+    .step-desc {
+      color: #cbd5e1;
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.9;
+      margin-left: 60px;
+    }
+    .input-section {
+      margin-bottom: 15px;
+    }
+    .input-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+    .header-settings-icon {
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 24px;
+      padding: 12px;
+      border-radius: 16px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(30, 41, 59, 0.3);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .header-settings-icon:hover {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+      box-shadow: 0 8px 20px rgba(56, 189, 248, 0.25);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .header-help-button {
+      cursor: pointer;
+      color: #e2e8f0;
+      padding: 10px 20px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .header-help-button:hover {
+      background: rgba(30, 41, 59, 0.5);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.3);
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+    }
+    .input-field {
+      width: 100%;
+      padding: 14px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      font-size: 15px;
+      transition: all 0.3s ease;
+      background: rgba(15, 23, 42, 0.3);
+      color: #f1f5f9;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+      background: rgba(15, 23, 42, 0.5);
+    }
+    .action-button {
+      width: 100%;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+      position: relative;
+      overflow: hidden;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    .action-button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #06b6d4 0%, #2563eb 100%);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+    }
+    .action-button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .action-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    .notice-card {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3); /* 清晰边框 */
+      border-radius: 18px;
+      padding: 16px 20px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      height: 150px;
+      overflow: hidden;
+      position: relative;
+    }
+    .notice-card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(56, 189, 248, 0.12);
+    }
+    .notice-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+    .notice-icon {
+      margin-right: 10px;
+      font-size: 18px;
+    }
+    .notice-content {
+      color: #e5e5e5;
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.9;
+    }
+    .notice-time {
+      color: #38bdf8;
+      font-size: 13px;
+      text-align: right;
+      margin-top: 12px;
+      opacity: 0.7;
+    }
+    .notice-refresh-btn {
+      background: rgba(56, 189, 248, 0.1);
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #38bdf8;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(4px);
+      box-shadow:
+        0 2px 6px rgba(56, 189, 248, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 0 0 1px rgba(56, 189, 248, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* 移除刷新按钮光效动画 */
+    .notice-refresh-btn:hover:not(:disabled) {
+      background: rgba(56, 189, 248, 0.2);
+      box-shadow:
+        0 3px 12px rgba(56, 189, 248, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 0 0 1px rgba(56, 189, 248, 0.3);
+      color: #7dd3fc;
+    }
+    /* 移除光效动画 */
+    .notice-refresh-btn:active:not(:disabled) {
+      box-shadow:
+        0 2px 6px rgba(217, 119, 6, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        0 0 0 1px rgba(217, 119, 6, 0.25);
+    }
+    .notice-refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      background: linear-gradient(135deg, rgba(226, 232, 240, 0.8) 0%, rgba(203, 213, 225, 0.6) 100%);
+      color: #94a3b8;
+    }
+    .refresh-icon {
+      font-size: 14px;
+    }
+    .loading-spinner {
+      animation: spin 1.2s linear infinite;
+      font-size: 14px;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .status-section {
+      margin-bottom: 12px;
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px; /* 调整间距 */
+    }
+    .status-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
+    }
+    .status-item:hover {
+      background-color: rgba(30, 41, 59, 0.6);
+      border-color: rgba(148, 163, 184, 0.4);
+    }
+    .status-label {
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-value {
+      font-weight: 600;
+      color: #e2e8f0;
+      font-size: 13px;
+    }
+    .status-value.success {
+      color: #34d399;
+    }
+    .status-value.warning {
+      color: #fbbf24;
+    }
+    .validity-container {
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 16px;
+      padding: 16px;
+      flex-shrink: 0;
+      min-height: auto;
+      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      margin-bottom: 12px;
+    }
+    .validity-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+    .validity-text {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.5);
+      min-width: 90px;
+      flex: 1;
+      border: 1px solid rgba(148, 163, 184, 0.2); /* 清晰边框 */
+    }
+    .validity-label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    .validity-days {
+      font-size: 20px;
+      font-weight: 700;
+      color: #34d399;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    .validity-days.warning {
+      color: #fbbf24;
+    }
+    .validity-days.danger {
+      color: #f87171;
+    }
+    .validity-total {
+      font-size: 16px;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+    .progress-container {
+      margin-top: 10px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 18px;
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 9px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22d3ee 0%, #3b82f6 100%);
+      border-radius: 9px;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+    }
+    /* 移除进度条光效动画 */
+    .progress-fill.warning {
+      background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+    .progress-fill.danger {
+      background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+    .progress-text {
+      text-align: center;
+      margin-top: 6px;
+      font-size: 12px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    /* 卡密过期按钮样式 */
+    .expired-button {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+      color: white !important;
+      cursor: not-allowed !important;
+      opacity: 0.8 !important;
+      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.25) !important;
+    }
+    .expired-button:hover {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+      transform: none !important;
+      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.25) !important;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    /* 移除shimmer动画 */
+
+    /* 对话框样式 */
+    .dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .dialog-content1 {
+      background: rgba(30, 41, 59, 0.9);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 5px;
+      width: 420px;
+      max-width: 90vw;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      animation: dialogSlideIn 0.3s ease-out;
+    }
+    .dialog-content {
+      background: rgba(30, 41, 59, 0.9);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 35px;
+      width: 420px;
+      max-width: 90vw;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      animation: dialogSlideIn 0.3s ease-out;
+    }
+    @keyframes dialogSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .dialog-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 20px;
+      text-align: center;
+      letter-spacing: -0.5px;
+    }
+    .dialog-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+      background: rgba(15, 23, 42, 0.6);
+      color: #e2e8f0;
+    }
+    .dialog-input:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .dialog-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .dialog-button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .dialog-button.primary {
+      background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+    }
+    .dialog-button.primary:hover {
+      background: linear-gradient(135deg, #0891b2 0%, #2563eb 100%);
+      box-shadow: 0 6px 16px rgba(6, 182, 212, 0.4);
+      transform: translateY(-1px);
+    }
+    .dialog-button.primary:active {
+      transform: translateY(0);
+    }
+    .dialog-button.primary:disabled {
+      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      cursor: not-allowed;
+      box-shadow: none;
+      opacity: 0.6;
+    }
+    .dialog-button.secondary {
+      background: rgba(30, 41, 59, 0.6);
+      color: #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .dialog-button.secondary:hover {
+      background: rgba(30, 41, 59, 0.8);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transform: translateY(-1px);
+    }
+    .dialog-button.secondary:active {
+      transform: translateY(0);
+    }
+    .dialog-button.success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    .dialog-button.success:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+      transform: translateY(-1px);
+    }
+    .dialog-button.success:active {
+      transform: translateY(0);
+    }
+
+    /* 弹窗关闭按钮样式 */
+    .popup-dialog button[title="关闭"]:hover {
+      color: #e2e8f0 !important;
+      transform: rotate(90deg);
+    }
+
+    .verification-status {
+      margin-bottom: 16px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+    }
+    .verification-status.success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .verification-status.error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .verification-status.loading {
+      background: rgba(100, 116, 139, 0.2);
+      color: #94a3b8;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px; /* 减小间距 */
+      margin-top: auto; /* 推到底部 */
+      flex-shrink: 0;
+    }
+    .secondary-button {
+      padding: 10px 18px;
+      background: rgba(30, 41, 59, 0.4);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: relative;
+      overflow: hidden;
+      letter-spacing: 0.3px;
+    }
+    /* 移除按钮光效动画 */
+    .secondary-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      background: rgba(30, 41, 59, 0.6);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* 蓝色按钮样式 - 进入官网、设置 */
+    .blue-button {
+      background: rgba(30, 41, 59, 0.4);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+    }
+    .blue-button:hover {
+      background: rgba(30, 41, 59, 0.6);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+      border-color: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+    }
+
+    /* 红色按钮样式 - 禁用更新 */
+    .red-button {
+      background: rgba(30, 41, 59, 0.4);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+    }
+    .red-button:hover:not(.disabled) {
+      background: rgba(30, 41, 59, 0.6);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+      border-color: rgba(248, 113, 113, 0.2);
+      color: #f87171;
+    }
+
+    .red-button.disabled {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      color: #d1d5db;
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+      box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2);
+    }
+
+    /* 通用禁用状态样式 */
+    .secondary-button.disabled {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%) !important;
+      color: #d1d5db !important;
+      cursor: not-allowed !important;
+      opacity: 0.6 !important;
+      transform: none !important;
+      box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2) !important;
+    }
+
+    .secondary-button.disabled:hover {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%) !important;
+      transform: none !important;
+      box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2) !important;
+    }
+
+    /* 灰色按钮样式 - 未验证状态 */
+    .gray-button {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      color: white;
+      border: 1px solid rgba(156, 163, 175, 0.3);
+      cursor: not-allowed;
+      box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2);
+    }
+    .gray-button:hover {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      transform: none;
+      box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2);
+    }
+
+    /* 主要按钮样式 - 刷新Kiro验证通过后 */
+    .secondary-button.primary-button {
+      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      color: white;
+      border: none;
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .secondary-button.primary-button:hover {
+      background: linear-gradient(135deg, #06b6d4 0%, #2563eb 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    .secondary-button.primary-button:disabled {
+      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      border: 1px solid rgba(75, 85, 99, 0.3);
+      color: white;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: 0 2px 8px rgba(156, 163, 175, 0.15);
+    }
+    /* 自定义标题栏样式 */
+    .custom-titlebar {
+      height: 30px;
+      background: transparent;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.35); /* 更清晰的分割线 */
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      -webkit-app-region: drag; /* 允许拖拽窗口 */
+      user-select: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+    }
+    .titlebar-title {
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .titlebar-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      -webkit-app-region: no-drag; /* 按钮区域不允许拖拽 */
+    }
+    .titlebar-button {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+    }
+    .titlebar-button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .titlebar-button.close-btn:hover {
+      background: #e74c3c;
+    }
+    /* 调整主内容区域，为标题栏留出空间 */
+    #app {
+      margin-top: 30px;
+      height: calc(100vh - 30px);
+    }
+
+    /* 调整Element Plus消息提示位置，避免被标题栏遮挡 */
+    .el-message {
+      top: 50px !important; /* 标题栏高度30px + 20px间距 */
+      z-index: 10000 !important; /* 确保在标题栏之上 */
+    }
+
+    /* 数据库选择项样式 */
+    .database-item {
+      transition: all 0.3s ease;
+      background: transparent;
+    }
+
+    .database-item:hover {
+      background: linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.5) 100%);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .database-item.selected {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.15) 100%);
+      border-left: 4px solid #10b981;
+      box-shadow: 0 2px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .database-item:last-child {
+      border-bottom: none;
+    }
+
+    /* 权限状态样式 */
+    .permission-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      color: #38bdf8;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      cursor: help;
+    }
+
+    .permission-status.administrator {
+      color: #38bdf8;
+    }
+
+    .permission-status.root {
+      color: #38bdf8;
+    }
+
+    .permission-status.sudo {
+      color: #38bdf8;
+    }
+
+    .permission-status.user {
+      color: #94a3b8;
+    }
+
+    .permission-status.unknown {
+      color: #6b7280;
+    }
+
+    .permission-status:hover {
+      transform: translateY(-1px);
+      background: rgba(30, 41, 59, 0.6);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .permission-text {
+      white-space: nowrap;
+    }
+
+    .permission-status svg {
+      flex-shrink: 0;
+    }
+
+    .permission-status .loading-icon {
+      animation: rotate 1.5s linear infinite;
+    }
+
+    @keyframes rotate {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 权限提示框样式 */
+    .permission-alert-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .permission-alert-box {
+      background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+      border-radius: 20px;
+      padding: 32px;
+      width: 480px;
+      max-width: 90vw;
+      border: 3px solid #ff6b6b;
+      box-shadow: 
+        0 20px 60px rgba(255, 107, 107, 0.3),
+        0 0 0 1px rgba(255, 107, 107, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      animation: slideInBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .permission-alert-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #ff6b6b, #ffa726, #ff6b6b);
+      animation: shimmer 2s infinite;
+    }
+
+    .permission-alert-icon {
+      text-align: center;
+      font-size: 48px;
+      margin-bottom: 16px;
+      animation: bounce 1s infinite;
+    }
+
+    .permission-alert-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #d32f2f;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .permission-alert-content {
+      color: #2c3e50;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .permission-alert-content p {
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .permission-alert-content ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .permission-alert-content li {
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .permission-alert-content strong {
+      color: #d32f2f;
+      font-weight: 700;
+    }
+
+    .permission-alert-buttons {
+      text-align: center;
+    }
+
+    .permission-alert-btn {
+      background: linear-gradient(135deg, #ff6b6b 0%, #d32f2f 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .permission-alert-btn:hover {
+      background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(255, 107, 107, 0.5);
+    }
+
+    .permission-alert-btn:active {
+      transform: translateY(0);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideInBounce {
+      0% {
+        opacity: 0;
+        transform: scale(0.3) translateY(-100px);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.05) translateY(0);
+      }
+      70% {
+        transform: scale(0.95);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+      }
+      40% {
+        transform: translateY(-10px);
+      }
+      60% {
+        transform: translateY(-5px);
+      }
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
+    }
+
+    /* Kiro初始化提示框样式 */
+    .Kiro-init-alert-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .Kiro-init-alert-box {
+      background: linear-gradient(135deg, #fff 0%, #f0f7ff 100%);
+      border-radius: 20px;
+      padding: 32px;
+      width: 500px;
+      max-width: 90vw;
+      border: 3px solid #2196f3;
+      box-shadow: 
+        0 20px 60px rgba(33, 150, 243, 0.3),
+        0 0 0 1px rgba(33, 150, 243, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      animation: slideInBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .Kiro-init-alert-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #2196f3, #03a9f4, #2196f3);
+      animation: shimmer 2s infinite;
+    }
+
+    .Kiro-init-alert-icon {
+      text-align: center;
+      font-size: 48px;
+      margin-bottom: 16px;
+      animation: pulse 2s infinite;
+    }
+
+    .Kiro-init-alert-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1976d2;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .Kiro-init-alert-content {
+      color: #2c3e50;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .Kiro-init-alert-content p {
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .Kiro-init-alert-content ol {
+      margin: 0 0 16px 0;
+      padding-left: 20px;
+    }
+
+    .Kiro-init-alert-content li {
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .Kiro-init-alert-content strong {
+      color: #1976d2;
+      font-weight: 700;
+    }
+
+    .Kiro-init-tip {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border-left: 4px solid #2196f3;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #1565c0;
+      margin-top: 16px;
+    }
+
+    .Kiro-init-alert-buttons {
+      text-align: center;
+    }
+
+    .Kiro-init-alert-btn {
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(33, 150, 243, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .Kiro-init-alert-btn:hover {
+      background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(33, 150, 243, 0.5);
+    }
+
+    .Kiro-init-alert-btn:active {
+      transform: translateY(0);
+    }
+
+    .Kiro-init-alert-btn.secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+      color: white;
+    }
+
+    .Kiro-init-alert-btn.secondary:hover {
+      background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(108, 117, 125, 0.5);
+    }
+
+    .Kiro-init-alert-btn.secondary:active {
+      transform: translateY(0);
+    }
+
+    .Kiro-init-alert-btn.secondary:disabled {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      color: #d1d5db;
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+      box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2);
+    }
+
+    /* 代理提示框样式 */
+    .proxy-alert-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .proxy-alert-box {
+      background: linear-gradient(135deg, #fff 0%, #fff8e1 100%);
+      border-radius: 20px;
+      padding: 32px;
+      width: 500px;
+      max-width: 90vw;
+      border: 3px solid #ff9800;
+      box-shadow: 
+        0 20px 60px rgba(255, 152, 0, 0.3),
+        0 0 0 1px rgba(255, 152, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      animation: slideInBounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .proxy-alert-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #ff9800, #ffc107, #ff9800);
+      animation: shimmer 2s infinite;
+    }
+
+    .proxy-alert-icon {
+      text-align: center;
+      font-size: 48px;
+      margin-bottom: 16px;
+      animation: spin 3s linear infinite;
+    }
+
+    .proxy-alert-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #f57c00;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .proxy-alert-content {
+      color: #2c3e50;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .proxy-alert-content p {
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .proxy-alert-content ol {
+      margin: 0 0 16px 0;
+      padding-left: 20px;
+    }
+
+    .proxy-alert-content li {
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .proxy-alert-content strong {
+      color: #f57c00;
+      font-weight: 700;
+    }
+
+    .proxy-tip {
+      background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+      border-left: 4px solid #ff9800;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #f57c00;
+      margin-top: 16px;
+    }
+
+    .proxy-alert-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .proxy-alert-btn {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(255, 152, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .proxy-alert-btn:hover {
+      background: linear-gradient(135deg, #f57c00 0%, #ef6c00 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(255, 152, 0, 0.5);
+    }
+
+    .proxy-alert-btn:active {
+      transform: translateY(0);
+    }
+
+    .proxy-alert-btn.secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+      color: white;
+    }
+
+    .proxy-alert-btn.secondary:hover {
+      background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(108, 117, 125, 0.5);
+    }
+
+    .proxy-alert-btn.secondary:active {
+      transform: translateY(0);
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 启动加载遮罩层 */
+    .app-loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      transition: opacity 0.5s ease-out;
+    }
+
+    .app-loading-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-content {
+      text-align: center;
+      color: white;
+    }
+
+    .loading-logo {
+      font-size: 64px;
+      margin-bottom: 24px;
+      animation: pulse 2s ease-in-out infinite;
+      filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.6));
+    }
+
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 24px;
+      position: relative;
+    }
+
+    .loading-spinner::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border: 4px solid rgba(59, 130, 246, 0.2);
+      border-top-color: #3b82f6;
+      border-right-color: #60a5fa;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .loading-text {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: linear-gradient(90deg, #60a5fa 0%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .loading-tip {
+      font-size: 14px;
+      color: #94a3b8;
+      font-weight: 400;
+      animation: fadeInOut 2s ease-in-out infinite;
+    }
+
+    .loading-progress {
+      width: 300px;
+      height: 4px;
+      background: rgba(59, 130, 246, 0.15);
+      border-radius: 2px;
+      margin: 20px auto 16px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loading-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #93c5fd 100%);
+      border-radius: 2px;
+      animation: progressMove 1.5s ease-in-out infinite;
+      width: 40%;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes fadeInOut {
+      0%, 100% {
+        opacity: 0.6;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes progressMove {
+      0% {
+        transform: translateX(-100%);
+      }
+      100% {
+        transform: translateX(350%);
+      }
+    }
+
+    /* 刷新Kiro提示弹窗样式 */
+    .Kiro-refresh-tip {
+      border-radius: 16px !important;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+      margin-left: 10px;
+      width: 400px !important;
+      max-width: 90vw !important;
+    }
+
+    .Kiro-refresh-tip .el-message-box {
+      width: 100% !important;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+      border: 1px solid rgba(100, 116, 139, 0.3) !important;
+    }
+
+    .Kiro-refresh-tip .el-message-box__header {
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .Kiro-refresh-tip .el-message-box__headerbtn {
+      top: 12px !important;
+      right: 12px !important;
+      z-index: 10;
+    }
+
+    .Kiro-refresh-tip .el-message-box__headerbtn .el-message-box__close {
+      color: #94a3b8 !important;
+      font-size: 20px !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .Kiro-refresh-tip .el-message-box__headerbtn .el-message-box__close:hover {
+      color: #e2e8f0 !important;
+      transform: rotate(90deg) !important;
+    }
+
+    .Kiro-refresh-tip .el-message-box__content {
+      padding: 0 !important;
+      line-height: 1.6 !important;
+    }
+
+    .Kiro-refresh-tip .el-message-box__message {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    /* 弹窗内容容器 */
+    .refresh-tip-content {
+      padding: 30px 30px 25px;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+    
+    /* 顶部图标 */
+    .refresh-tip-content .tip-icon {
+      font-size: 48px;
+      text-align: center;
+      margin-bottom: 15px;
+      animation: tipIconFloat 2s ease-in-out infinite;
+    }
+    
+    @keyframes tipIconFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    
+    /* 标题 */
+    .refresh-tip-content .tip-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #e2e8f0;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    /* 主要提示文字 */
+    .refresh-tip-content .tip-main {
+      font-size: 16px;
+      color: #cbd5e1;
+      text-align: center;
+      margin: 0 0 20px 0;
+      font-weight: 500;
+    }
+
+    /* 步骤容器 */
+    .refresh-tip-content .tip-steps {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(100, 116, 139, 0.2);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 每个步骤 */
+    .refresh-tip-content .tip-step {
+      display: flex;
+      align-items: flex-start;
+      padding: 10px 0;
+      transition: all 0.3s ease;
+    }
+
+    .refresh-tip-content .tip-step:not(:last-child) {
+      border-bottom: 1px dashed rgba(100, 116, 139, 0.3);
+    }
+
+    /* .refresh-tip-content .tip-step:hover {
+      transform: translateX(4px);
+    } */
+
+    .refresh-tip-content .tip-step .step-icon {
+      font-size: 22px;
+      margin-right: 12px;
+      flex-shrink: 0;
+      line-height: 1.4;
+    }
+
+    .refresh-tip-content .tip-step .step-text {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .refresh-tip-content .tip-step .step-text strong {
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    
+    /* 底部提示 */
+    .refresh-tip-content .tip-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 16px;
+      background: rgba(251, 191, 36, 0.15);
+      border-radius: 8px;
+      border-left: 4px solid #fbbf24;
+    }
+
+    .refresh-tip-content .tip-footer .footer-icon {
+      font-size: 18px;
+      margin-right: 8px;
+    }
+
+    .refresh-tip-content .tip-footer .footer-text {
+      color: #fcd34d;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* 按钮样式 */
+    .Kiro-refresh-tip .el-message-box__btns {
+      padding: 0 30px 30px !important;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+
+    .Kiro-refresh-tip .el-button--primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+      border: none !important;
+      padding: 13px 32px !important;
+      font-size: 15px !important;
+      font-weight: 600 !important;
+      border-radius: 10px !important;
+      transition: all 0.3s ease !important;
+      color: #ffffff !important;
+    }
+
+    .Kiro-refresh-tip .el-button--primary:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+    }
+
+    .Kiro-refresh-tip .el-button--primary:active {
+      transform: translateY(0) !important;
+    }
+
+    .Kiro-refresh-tip .el-button--default {
+      padding: 13px 28px !important;
+      font-size: 15px !important;
+      border-radius: 10px !important;
+      border: 1px solid rgba(100, 116, 139, 0.3) !important;
+      color: #94a3b8 !important;
+      background: rgba(30, 41, 59, 0.5) !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .Kiro-refresh-tip .el-button--default:hover {
+      border-color: rgba(148, 163, 184, 0.5) !important;
+      background: rgba(51, 65, 85, 0.5) !important;
+      color: #cbd5e1 !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- 启动加载遮罩层 -->
+  <div id="app-loading" class="app-loading-overlay">
+    <div class="loading-content">
+      <div class="loading-logo">⚡</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loading-text">正在初始化应用...</div>
+      <div class="loading-progress">
+        <div class="loading-progress-bar"></div>
+      </div>
+      <div class="loading-tip" id="loading-tip">正在连接服务器，请稍候...</div>
+    </div>
+  </div>
+
+  <!-- 自定义标题栏 -->
+  <div class="custom-titlebar">
+    <div class="titlebar-title">
+      <svg width="16" height="16" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="12" fill="currentColor" opacity="0.8"/>
+        <path d="M12 16l4 4 8-8" stroke="white" stroke-width="2" fill="none"/>
+      </svg>
+      Kiro续杯工具
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-button minimize-btn" onclick="minimizeWindow()">
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <path d="M2 6h8" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </button>
+      <button class="titlebar-button close-btn" onclick="closeWindow()">
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div id="app">
+    <div class="header">
+      <div style="display: flex; align-items: center;">
+        <div class="app-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="iconGradient" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                <stop stop-color="white" stop-opacity="0.95"/>
+                <stop offset="1" stop-color="white" stop-opacity="0.7"/>
+              </linearGradient>
+            </defs>
+            <!-- 核心图形：无限循环 -->
+            <path d="M22.5 10.5C20.5 8.5 17.5 8.5 15.5 10.5L12.5 13.5C11.5 14.5 10 14.5 9 13.5C8 12.5 8 11 9 10C10 9 11 9 12 10" stroke="url(#iconGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/>
+            <path d="M9.5 21.5C11.5 23.5 14.5 23.5 16.5 21.5L19.5 18.5C20.5 17.5 22 17.5 23 18.5C24 19.5 24 21 23 22C22 23 21 23 20 22" stroke="url(#iconGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/>
+            <!-- 主能量符号：闪电/激活 -->
+            <path d="M18 4L10 16H17L16 28L24 16H17L18 4Z" fill="white"/>
+            <!-- 装饰粒子 -->
+            <circle cx="6" cy="16" r="1.5" fill="white" fill-opacity="0.6"/>
+            <circle cx="26" cy="16" r="1.5" fill="white" fill-opacity="0.6"/>
+            <circle cx="16" cy="6" r="1.5" fill="white" fill-opacity="0.4"/>
+            <circle cx="16" cy="26" r="1.5" fill="white" fill-opacity="0.4"/>
+          </svg>
+        </div>
+        <div class="app-info" style="position: relative;">
+          <h1>Kiro续杯工具</h1>
+          <!-- 版本更新提示 - 红色感叹号，放在标题右上角 -->
+          <span v-if="hasNewVersion" @click="showVersionUpdateDialog"
+                style="position: absolute; top: 33px; right: 50px; width: 14px; height: 14px; background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 8px rgba(255, 68, 68, 0.6);"
+                title="发现新版本，点击查看">
+            !
+          </span>
+          <div class="version" @click="showVersionUpdateDialog"
+               :style="{
+                 display: 'flex',
+                 alignItems: 'center',
+                 gap: '6px',
+                 userSelect: 'none',
+                 cursor: 'pointer',
+                 color: versionCompareResult < 0 ? '#ff4444' : (versionCompareResult === 0 ? '#10b981' : '#a855f7'),
+                 fontWeight: '600',
+                 textShadow: versionCompareResult < 0 ? '0 2px 8px rgba(255, 68, 68, 0.4)' : (versionCompareResult === 0 ? '0 2px 8px rgba(16, 185, 129, 0.4)' : '0 2px 8px rgba(168, 85, 247, 0.4)'),
+                 transition: 'all 0.3s ease'
+               }">
+            Version 1.0
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <!-- 通知铃铛按钮 -->
+        <div @click="openPopupNotification" title="查看通知公告" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(30, 41, 59, 0.3); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 50%; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);" onmouseover="this.style.transform='scale(1.1)'; this.style.background='rgba(56, 189, 248, 0.15)'; this.style.boxShadow='0 8px 20px rgba(56, 189, 248, 0.25)'; this.style.borderColor='rgba(56, 189, 248, 0.3)'" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(30, 41, 59, 0.3)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'; this.style.borderColor='rgba(255, 255, 255, 0.05)'">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        
+        <!-- 售后交流群二维码按钮 -->
+        <div class="header-help-button" @click="showQrcodeDialog" title="进入售后交流群">
+          <span style="font-size: 14px; font-weight: 600; color: white;">进入售后交流群</span>
+        </div>
+
+        <!-- Kiro常见问题处理按钮 -->
+        <div class="header-help-button" @click="openHelpPage" title="Kiro常见问题处理">
+          <span style="font-size: 14px; font-weight: 600; color: white;">Kiro常见问题处理</span>
+        </div>
+        <!-- 权限状态显示 -->
+        <div class="permission-status" :class="permissionStatusClass" :title="permissionTooltip">
+          <!-- 加载状态 -->
+          <svg v-if="permissionInfo.loading" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="loading-icon">
+            <path d="M12 6V12L16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+          </svg>
+          <!-- 管理员/Root权限图标 -->
+          <svg v-else-if="permissionInfo.level === 'administrator' || permissionInfo.level === 'root'" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1M10 17L6 13L7.41 11.59L10 14.17L16.59 7.58L18 9L10 17Z" 
+                  fill="currentColor"/>
+          </svg>
+          <!-- Sudo权限图标 -->
+          <svg v-else-if="permissionInfo.level === 'sudo'" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1M11 7H13V9H15V11H13V13H11V11H9V9H11V7Z" 
+                  fill="currentColor"/>
+          </svg>
+          <!-- 普通用户权限图标 -->
+          <svg v-else-if="permissionInfo.level === 'user'" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1M12 7C13.1 7 14 7.9 14 9S13.1 11 12 11 10 10.1 10 9 10.9 7 12 7M12 13C13.5 13 15.91 13.84 16 15.5H8C8.09 13.84 10.5 13 12 13Z" 
+                  fill="currentColor"/>
+          </svg>
+          <!-- 未知权限图标 -->
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1M12 8C12.55 8 13 8.45 13 9S12.55 10 12 10 11 9.55 11 9 11.45 8 12 8M12 11C12.55 11 13 11.45 13 12S12.55 13 12 13 11 12.55 11 12 11.45 11 12 11M12 14C12.55 14 13 14.45 13 15S12.55 16 12 16 11 15.55 11 15 11.45 14 12 14Z" 
+                  fill="currentColor"/>
+          </svg>
+          <span class="permission-text">{{ permissionInfo.description }}</span>
+        </div>
+        <div class="header-settings-icon" @click="openCardDialog" title="设置授权码">⚙️</div>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div class="left-panel">
+        <!-- 步骤容器 -->
+        <div class="steps-container">
+          <!-- 步骤1: 输入授权码 -->
+          <div class="step-card">
+            <div class="step-number" :class="{ completed: stepStatus[0] === 'completed', processing: stepStatus[0] === 'processing' }">1</div>
+            <div class="step-title">输入授权码</div>
+            <div class="step-desc">点击右上角设置按钮输入授权码，验证通过后即可使用续杯功能。</div>
+          </div>
+
+          <!-- 步骤2: 刷新Kiro -->
+          <div class="step-card">
+            <div class="step-number" :class="{ completed: stepStatus[1] === 'completed', processing: stepStatus[1] === 'processing' }">2</div>
+            <div class="step-title">刷新Kiro</div>
+            <div class="step-desc">激活成功后，点击"刷新Kiro"按钮，系统将先退出当前登录的账号，然后自动切换到新账号并启动Kiro（如果未运行）。</div>
+          </div>
+        </div>
+
+        <!-- 最新公告 -->
+        <div class="notice-card">
+          <div class="notice-title">
+            <div style="display: flex; align-items: center;">
+              {{ notice.title }}
+            </div>
+            <button class="notice-refresh-btn" @click="refreshNotice" :disabled="isLoadingNotice" title="刷新公告">
+              <span v-if="!isLoadingNotice" class="refresh-icon">↻</span>
+              <span v-else class="loading-spinner">◐</span>
+            </button>
+          </div>
+          <div class="notice-content" v-if="!isLoadingNotice">
+            {{ notice.content }}
+          </div>
+          <div class="notice-content" v-else>
+            <i class="el-icon-loading"></i> 正在加载公告内容...
+          </div>
+          <div class="notice-time" v-if="notice.time">{{ notice.time }}</div>
+        </div>
+      </div>
+      
+      <div class="right-panel">
+        <!-- 状态信息 -->
+        <div class="status-section">
+          <div class="status-item">
+            <span class="status-label">当前授权码:</span>
+            <span class="status-value">{{ maskedCardCode }}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">当前Kiro版本:</span>
+            <span class="status-value success">{{ KiroVersion || '未检测' }}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">剩余额度:</span>
+            <span class="status-value success">无限额度</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">到期时间:</span>
+            <span class="status-value warning">{{ formattedExpiryTime }}</span>
+          </div>
+        </div>
+        
+        <!-- 卡密有效期进度 -->
+        <h3 style="margin-bottom: 10px; color: #e2e8f0; font-size: 15px; font-weight: 700;">卡密有效期</h3>
+        <div class="validity-container">
+          <div class="validity-info">
+            <div class="validity-text">
+              <span class="validity-label">剩余天数:</span>
+              <span class="validity-days" :class="{ 'warning': remainingDays <= 7, 'danger': remainingDays <= 3 }">
+                {{ remainingDays >= 0 ? remainingDays + ' 天' : '已过期' }}
+              </span>
+            </div>
+            <div class="validity-text">
+              <span class="validity-label">总有效期:</span>
+              <span class="validity-total">{{ totalValidityDays }} 天</span>
+            </div>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" :style="{ width: validityProgress + '%' }"
+                   :class="{ 'warning': remainingDays <= 7, 'danger': remainingDays <= 3 }"></div>
+            </div>
+            <div class="progress-text">{{ validityProgress.toFixed(1) }}%</div>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="button-group">
+            <button class="secondary-button"
+                    @click="pythonStyleRenewal"
+                    :disabled="processing || !cardVerified || refreshKiroCooldown || cardExpired"
+                    :class="{
+                      'primary-button': cardVerified && !refreshKiroCooldown && !cardExpired,
+                      'gray-button': (!cardVerified || cardExpired) && !processing,
+                      'disabled': refreshKiroCooldown || cardExpired,
+                      'expired-button': cardExpired
+                    }">
+                {{
+                  processing ? '处理中...' :
+                  cardExpired ? '卡密已过期/失效' :
+                  refreshKiroCooldown ? `刷新Kiro (${Math.floor(refreshKiroCountdown / 60)}:${String(refreshKiroCountdown % 60).padStart(2, '0')})` :
+                  (cardVerified ? '刷新Kiro' : '请先验证授权码')
+                }}
+            </button>
+            <button class="secondary-button blue-button" @click="openSettings">指定Kiro路径</button>
+          <button class="secondary-button blue-button" @click="openWebsite">进入官网</button>
+          <button class="secondary-button red-button"
+                  @click="checkUpdate"
+                  :disabled="disableUpdateCooldown"
+                  :class="{ 'disabled': disableUpdateCooldown }">
+            {{ disableUpdateCooldown ? `禁用更新 (${disableUpdateCountdown}s)` : '禁用Kiro更新' }}
+          </button>
+        </div>
+
+
+      </div>
+    </div>
+
+    <!-- 授权码设置对话框 -->
+    <div v-if="showCardDialog" class="dialog-overlay" @click.self="closeCardDialog">
+      <div class="dialog-content">
+        <div class="dialog-title">设置授权码</div>
+
+        <div v-if="verificationStatus" class="verification-status" :class="verificationStatus.type">
+          {{ verificationStatus.message }}
+        </div>
+
+        <input
+          type="text"
+          class="dialog-input"
+          v-model="tempCardCode"
+          placeholder="请输入授权码"
+          @keyup.enter="verifyCard"
+          :disabled="verifying"
+        />
+
+        <div class="dialog-buttons">
+          <button class="dialog-button secondary" @click="clearCachedAuthCode" :disabled="verifying" title="清除本地缓存的授权码">
+            清除缓存
+          </button>
+          <button class="dialog-button secondary" @click="closeCardDialog" :disabled="verifying">
+            取消
+          </button>
+          <button class="dialog-button primary" @click="verifyCard" :disabled="verifying || !tempCardCode.trim()">
+            {{ verifying ? '验证中...' : '校验' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 设置对话框 -->
+    <div v-if="showSettingsDialog" class="dialog-overlay" @click.self="closeSettingsDialog">
+      <div class="dialog-content" style="width: 500px;">
+        <div class="dialog-title">应用设置</div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #e2e8f0;">自定义Kiro安装路径</label>
+          <div style="display: flex; gap: 8px;">
+            <input
+              type="text"
+              class="dialog-input"
+              v-model="tempSettings.customKiroPath"
+              placeholder="留空使用默认路径，或选择Kiro安装目录"
+              style="flex: 1; margin-bottom: 0;"
+            />
+            <button
+              class="dialog-button primary"
+              style="padding: 8px 16px; white-space: nowrap;"
+              @click="selectKiroPath"
+              :disabled="isSelectingPath"
+            >
+              <span v-if="isSelectingPath">选择中...</span>
+              <span v-else>选择目录</span>
+            </button>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 6px; line-height: 1.5;">
+            💡 提示：选择Kiro.exe所在的目录，例如：D:\Kiro
+          </div>
+          <div style="font-size: 12px; color: #fbbf24; margin-top: 4px; line-height: 1.5;">
+            ⚠️ 注意：具体教程点击续杯工具上方的“问题处理按钮”查看
+          </div>
+        </div>
+
+        <div class="dialog-buttons">
+          <button class="dialog-button secondary" @click="closeSettingsDialog">
+            取消
+          </button>
+          <button class="dialog-button success" @click="saveSettings">
+            保存设置
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据库选择对话框 -->
+    <div v-if="showDatabaseDialog" class="dialog-overlay" @click.self="cancelDatabaseSelection">
+      <div class="dialog-content" style="width: 600px; max-height: 70vh; overflow-y: auto;">
+        <div class="dialog-title">选择Kiro数据库</div>
+
+        <div style="margin-bottom: 20px; color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+          系统找到多个用户的Kiro数据库，请选择要使用的数据库：
+        </div>
+
+        <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(100, 116, 139, 0.4); border-radius: 8px; background: rgba(30, 41, 59, 0.3);">
+          <div
+            v-for="(db, index) in availableDatabases"
+            :key="index"
+            @click="selectedDatabaseIndex = index"
+            :class="['database-item', { 'selected': selectedDatabaseIndex === index }]"
+            style="padding: 16px; border-bottom: 1px solid rgba(100, 116, 139, 0.2); cursor: pointer; transition: all 0.3s;"
+          >
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="flex: 1;">
+                <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 6px; display: flex; align-items: center;">
+                  <span :style="{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: selectedDatabaseIndex === index ? '#10b981' : '#64748b',
+                    marginRight: '8px',
+                    transition: 'all 0.3s',
+                    boxShadow: selectedDatabaseIndex === index ? '0 0 8px rgba(16, 185, 129, 0.5)' : 'none'
+                  }"></span>
+                  用户: {{ db.username }}
+                  <span v-if="index === 0" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; margin-left: 8px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">推荐</span>
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">
+                  📁 路径: {{ db.path }}
+                </div>
+                <div style="display: flex; gap: 16px; font-size: 11px; color: #64748b;">
+                  <span>💾 大小: {{ formatFileSize(db.size) }}</span>
+                  <span>🕒 修改时间: {{ formatModifiedTime(db.modified) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; padding: 14px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; font-size: 13px; color: #93c5fd; line-height: 1.6;">
+          <strong style="color: #60a5fa;">💡 提示：</strong>推荐选择最近修改的数据库（已按修改时间排序）。如果您经常使用特定用户的Kiro，请选择该用户的数据库。
+        </div>
+
+        <div class="dialog-buttons" style="margin-top: 20px;">
+          <button class="dialog-button secondary" @click="cancelDatabaseSelection">
+            取消
+          </button>
+          <button class="dialog-button primary" @click="confirmDatabaseSelection">
+            确认选择
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 启动弹窗对话框 -->
+    <div v-if="popup.show" class="dialog-overlay" @click.self="closePopup">
+      <div class="dialog-content1 popup-dialog" style="width: 600px; max-width: 90%;">
+        <div class="dialog-title" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
+          <span>{{ popup.title }}</span>
+          <button @click="closePopup" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; padding: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: color 0.3s;" title="关闭">
+            ×
+          </button>
+        </div>
+
+        <div class="popup-content" style="padding: 16px 20px; max-height: 400px; overflow-y: auto;">
+
+          <!-- 上半部分：更新信息 -->
+          <div v-if="popup.updateInfo" class="popup-section popup-update-section" style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.5) 100%); border: 1px solid rgba(100, 116, 139, 0.4); padding: 14px 16px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 18px; margin-right: 8px;">📅</span>
+              <span style="font-weight: 600; color: #ffffff; font-size: 15px;">最近更新提醒</span>
+            </div>
+            <div style="white-space: pre-wrap; line-height: 1.7; color: #e2e8f0; font-size: 13px;">{{ popup.updateInfo }}</div>
+          </div>
+
+          <!-- 虚线分割线 -->
+          <div v-if="popup.updateInfo && popup.otherInfo" style="border-top: 2px dashed rgba(148, 163, 184, 0.3); margin: 14px 0; position: relative;">
+            <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 0 12px; color: #94a3b8; font-size: 11px;">
+              ⬇️
+            </div>
+          </div>
+
+          <!-- 下半部分：其他信息 -->
+          <div v-if="popup.otherInfo" class="popup-section popup-other-section" style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.5) 100%); border: 1px solid rgba(100, 116, 139, 0.4); padding: 14px 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 18px; margin-right: 8px;">ℹ️</span>
+              <span style="font-weight: 600; color: #ffffff; font-size: 15px;">其他通知</span>
+            </div>
+            <div style="white-space: pre-wrap; line-height: 1.7; color: #e2e8f0; font-size: 13px;">{{ popup.otherInfo }}</div>
+          </div>
+
+          <!-- 兼容旧版本：如果没有新字段，显示旧的content -->
+          <div v-if="!popup.updateInfo && !popup.otherInfo && popup.content" style="white-space: pre-wrap; line-height: 1.7; color: #e2e8f0; font-size: 13px;">
+            {{ popup.content }}
+          </div>
+
+        </div>
+
+        <div class="dialog-buttons" style="margin-top: 0; padding: 0 20px 20px;">
+          <button class="dialog-button primary" @click="closePopup" style="width: 100%;">
+            我知道了
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 二维码对话框 -->
+    <div v-if="isQrcodeDialogVisible" class="dialog-overlay" @click.self="closeQrcodeDialog">
+      <div class="dialog-content" style="width: 420px; max-width: 90%; text-align: center; padding: 0;">
+        <div class="dialog-title" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; margin-bottom: 0;">
+          <span style="font-size: 15px; font-weight: 600;">售后交流群二维码</span>
+        </div>
+
+        <!-- 二维码加载中 -->
+        <div v-if="qrcodeLoading" style="padding: 30px 16px 24px;">
+          <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #f3f3f3; border-top: 3px solid #409eff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+          <p style="margin-top: 12px; color: #666; font-size: 13px;">正在加载二维码...</p>
+        </div>
+
+        <!-- 二维码显示 -->
+        <div v-else-if="qrcodeImagePath" style="padding: 0 16px 14px;">
+          <img :src="getQrcodeImageUrl(qrcodeImagePath)" alt="售后交流群二维码" style="max-width: 100%; max-height: 360px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+          <div style="display: none; color: #999; padding: 30px 0;">
+            <div style="font-size: 40px; margin-bottom: 12px;">🖼️</div>
+            <p style="font-size: 13px;">图片加载失败</p>
+            <p style="font-size: 11px; margin-top: 6px; word-break: break-all; color: #bbb;">{{ qrcodeImagePath }}</p>
+          </div>
+          <p style="margin-top: 12px; margin-bottom: 0; color: #666; font-size: 13px;">
+            <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 6px 14px; border-radius: 16px; font-weight: 600;">
+              📱 扫码加入售后交流群
+            </span>
+          </p>
+        </div>
+
+        <!-- 加载失败 -->
+        <div v-else style="padding: 40px 16px 30px;">
+          <div style="font-size: 40px; color: #999; margin-bottom: 12px;">😕</div>
+          <p style="color: #999; font-size: 13px;">{{ qrcodeErrorMessage || '暂无二维码' }}</p>
+        </div>
+
+        <div class="dialog-buttons" style="margin-top: 0; padding: 0 16px 16px;">
+          <button class="dialog-button secondary" @click="closeQrcodeDialog" style="flex: 1;">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 权限提示框 -->
+    <div v-if="showPermissionAlert" class="permission-alert-overlay">
+      <div class="permission-alert-box">
+        <div class="permission-alert-icon">
+          ⚠️
+        </div>
+        <div class="permission-alert-title">需要管理员权限</div>
+        <div class="permission-alert-content">
+          <p>检测到权限不足错误，<strong>请按以下步骤操作：</strong></p>
+          <ol>
+            <li><strong>关闭</strong>当前程序</li>
+            <li><strong>右键</strong>程序图标</li>
+            <li>选择"<strong>以管理员身份运行</strong>"</li>
+            <li>重新点击"<strong>刷新Kiro</strong>"按钮</li>
+          </ol>
+        </div>
+        <div class="permission-alert-buttons">
+          <button class="permission-alert-btn" @click="closePermissionAlert">
+            我知道了
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kiro初始化提示框 -->
+    <div v-if="showKiroInitAlert" class="Kiro-init-alert-overlay">
+      <div class="Kiro-init-alert-box">
+        <div class="Kiro-init-alert-icon">
+          💡
+        </div>
+        <div class="Kiro-init-alert-title">未找到Kiro数据库</div>
+        <div class="Kiro-init-alert-content">
+          <p>系统未找到Kiro数据库文件，可能的原因：</p>
+          <ol>
+            <li>Kiro<strong>尚未运行过</strong>或未完成初始化</li>
+            <li>Kiro数据库位于<strong>其他盘符</strong>的AppData文件夹中</li>
+            <li>使用了<strong>非标准安装路径</strong></li>
+          </ol>
+          <div class="Kiro-init-tip">
+            <strong>解决方案：</strong>
+          </div>
+          <ol style="margin-top: 8px;">
+            <li>确保Kiro已正常运行过至少一次</li>
+            <li>或点击下方"手动搜索"按钮指定搜索路径</li>
+          </ol>
+        </div>
+        <div class="Kiro-init-alert-buttons" style="display: flex; gap: 12px; justify-content: center;">
+          <button class="Kiro-init-alert-btn secondary" @click="manualSearchDatabase" :disabled="isSearching">
+            {{ isSearching ? '搜索中...' : '手动搜索' }}
+          </button>
+          <button class="Kiro-init-alert-btn" @click="closeKiroInitAlert">
+            我知道了
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 代理提示框 -->
+    <div v-if="showProxyAlert" class="proxy-alert-overlay">
+      <div class="proxy-alert-box">
+        <div class="proxy-alert-icon">
+          🌐
+        </div>
+        <div class="proxy-alert-title">请关闭网络代理</div>
+        <div class="proxy-alert-content">
+          <p>检测到API请求失败，通常是由网络代理引起的，<strong>请按以下步骤操作：</strong></p>
+          <ol>
+            <li><strong>关闭魔法</strong>或代理软件</li>
+            <li><strong>断开代理连接</strong>（如有使用）</li>
+            <li><strong>重新启动续杯工具</strong></li>
+            <li>重新点击"<strong>刷新Kiro</strong>"按钮</li>
+          </ol>
+          <div class="proxy-tip">
+            <strong>提示：</strong>代理或魔法可能会阻止程序正常访问续杯服务器
+          </div>
+        </div>
+        <div class="proxy-alert-buttons">
+          <button class="proxy-alert-btn" @click="closeProxyAlert">
+            我知道了
+          </button>
+          <button class="proxy-alert-btn secondary" @click="openHelpDocument">
+            还是不行
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 版本更新对话框 -->
+    <div v-if="showVersionDialog" class="dialog-overlay" @click.self="closeVersionDialog">
+      <div class="dialog-content1" style="width: 500px; max-width: 90%;">
+        <div class="dialog-title" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 24px;">🎉</span>
+            <span v-if="versionCompareResult < 0">发现新版本</span>
+            <span v-else-if="versionCompareResult === 0">已是最新版本</span>
+            <span v-else>版本信息</span>
+          </span>
+          <button @click="closeVersionDialog" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999; padding: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: color 0.3s;" title="关闭">
+            ×
+          </button>
+        </div>
+
+        <div style="padding: 16px 20px;">
+          <!-- 版本对比 -->
+          <div style="background: linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-around; align-items: center;">
+              <div style="text-align: center;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">当前版本</div>
+                <div style="font-size: 24px; font-weight: 700; color: #999;">{{ currentVersion }}</div>
+              </div>
+              <div style="font-size: 24px;" :style="{ color: versionCompareResult === 0 ? '#4caf50' : '#2196f3' }">
+                {{ versionCompareResult === 0 ? '✓' : '→' }}
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">最新版本</div>
+                <div style="font-size: 24px; font-weight: 700;" :style="{ color: versionCompareResult === 0 ? '#4caf50' : '#4caf50' }">{{ latestVersion }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 有新版本时显示更新提示 -->
+          <div v-if="versionCompareResult < 0" style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border-left: 4px solid #ff9800; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 18px; margin-right: 8px;">🆙</span>
+              <span style="font-weight: 600; color: #f57c00; font-size: 14px;">发现新版本</span>
+            </div>
+            <div style="color: #5d4037; font-size: 13px; line-height: 1.6;">
+              <p style="margin: 0 0 8px 0;">发现新版本的续杯工具！建议您更新到最新版本以获得：</p>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li>更好的性能和稳定性</li>
+                <li>最新的功能和改进</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 版本相同时显示 -->
+          <div v-else-if="versionCompareResult === 0" style="background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%); border-left: 4px solid #4caf50; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 18px; margin-right: 8px;">✅</span>
+              <span style="font-weight: 600; color: #2e7d32; font-size: 14px;">当前已是最新版本</span>
+            </div>
+            <div style="color: #1b5e20; font-size: 13px; line-height: 1.6;">
+              <p style="margin: 0;">恭喜！您当前使用的是最新版本的续杯工具，无需更新。</p>
+            </div>
+          </div>
+
+          <!-- 当前版本更高时显示 -->
+          <div v-else style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-left: 4px solid #9c27b0; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 18px; margin-right: 8px;">🚀</span>
+              <span style="font-weight: 600; color: #7b1fa2; font-size: 14px;">使用的是测试版本</span>
+            </div>
+            <div style="color: #4a148c; font-size: 13px; line-height: 1.6;">
+              <p style="margin: 0;">您当前使用的版本高于最新正式版，可能是测试版或开发版。</p>
+            </div>
+          </div>
+
+          <!-- 下载链接（仅在有新版本时显示） -->
+          <div v-if="versionCompareResult < 0" style="background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">下载地址：</div>
+            <div style="font-size: 13px; color: #2196f3; word-break: break-all; background: white; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0;">
+              {{ latestVersionInfo?.download_url || '暂无下载链接' }}
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-buttons" style="padding: 0 20px 20px; gap: 12px;">
+          <!-- 有新版本时显示下载按钮 -->
+          <template v-if="versionCompareResult < 0">
+            <button class="dialog-button secondary" @click="closeVersionDialog" style="flex: 1;">
+              稍后更新
+            </button>
+            <button class="dialog-button primary" @click="openDownloadPage" style="flex: 1; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+              下载历史版本
+            </button>
+            <button class="dialog-button primary" @click="downloadNewVersion" style="flex: 1; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);">
+              立即下载
+            </button>
+          </template>
+          <!-- 版本相同或更高时显示关闭和下载页面按钮 -->
+          <template v-else>
+            <button class="dialog-button secondary" @click="openDownloadPage" style="flex: 1; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+              下载历史版本
+            </button>
+            <button class="dialog-button primary" @click="closeVersionDialog" style="flex: 1; background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);">
+              我知道了
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+  <script>
+    // 检查是否为生产环境并加载对应的库文件
+    if (process.env.NODE_ENV === 'production' || window.process?.env?.NODE_ENV === 'production') {
+      // 生产环境使用本地文件
+      document.write('<script src="./vue.global.js"><\/script>');
+      document.write('<script src="./element-plus.js"><\/script>');
+    } else {
+      // 开发环境使用CDN
+      document.write('<script src="https://unpkg.com/vue@3/dist/vue.global.js"><\/script>');
+      document.write('<script src="https://unpkg.com/element-plus/dist/index.full.js"><\/script>');
+    }
+  </script>
+  <script>
+    const { createApp } = Vue;
+    const { ElMessage, ElMessageBox } = ElementPlus;
+
+    // 检查Vue是否正确加载
+    function ensureLibsLoaded() {
+      if (typeof Vue === 'undefined' || typeof ElementPlus === 'undefined') {
+        console.error('Vue或ElementPlus库加载失败，尝试重新加载');
+        setTimeout(initApp, 500); // 500毫秒后重试
+        return false;
+      }
+      return true;
+    }
+
+    // 初始化应用
+    function initApp() {
+      if (!ensureLibsLoaded()) return;
+
+      // 获取electron相关模块
+      const { ipcRenderer } = require('electron');
+      const path = require('path');
+      const fs = require('fs');
+      const os = require('os');
+
+      createApp({
+        data() {
+          return {
+            cardCode: '',
+            tempCardCode: '',
+            processing: false,
+            stepStatus: ['pending', 'pending'], // 两个步骤的状态
+            usedAccounts: 0,
+            remainingAccounts: 0,
+            expiryTime: '未授权',
+            KiroPaths: null,
+            KiroVersion: '未检测',
+            settings: {
+              debugMode: false,
+              customKiroPath: ''
+            },
+            // 对话框相关
+            showCardDialog: false,
+            showSettingsDialog: false,
+            verifying: false,
+            cardVerified: false,
+            verificationStatus: null,
+            // 设置相关
+            tempSettings: {
+              customKiroPath: ''
+            },
+            isSelectingPath: false, // 添加一个标记，表示是否正在选择路径
+            // 卡密有效期相关
+            cardStartDate: null,
+            cardEndDate: null,
+            totalValidityDays: 30, // 默认30天有效期
+            // 公告相关数据
+            notice: {
+              title: '最新公告',
+              content: '正在加载公告内容...',
+              time: '',
+              user: ''
+            },
+            isLoadingNotice: true,
+            // 弹窗相关数据
+            popup: {
+              show: false,
+              title: '',
+              content: '',       // 兼容旧版本
+              updateInfo: '',    // 更新信息（上半部分）
+              otherInfo: '',     // 其他信息（下半部分）
+              updateDate: '',    // 最近更新日期
+              id: null
+            },
+            // 二维码相关数据
+            isQrcodeDialogVisible: false,    // 是否显示二维码对话框
+            qrcodeLoading: false,            // 二维码加载中
+            qrcodeImagePath: '',             // 二维码图片路径
+            qrcodeErrorMessage: '',          // 错误信息
+            // 禁用更新按钮状态
+            disableUpdateCooldown: false,
+            disableUpdateCountdown: 0,
+            // 刷新Kiro按钮状态
+            refreshKiroCooldown: false,
+            refreshKiroCountdown: 0,
+            // 数据库选择对话框
+            showDatabaseDialog: false,
+            availableDatabases: [],
+            selectedDatabaseIndex: 0,
+            // 权限信息
+            permissionInfo: {
+              level: 'unknown',
+              description: '检测中...',
+              loading: true
+            },
+            // 权限提示框
+            showPermissionAlert: false,
+            // Kiro未初始化提示框
+            showKiroInitAlert: false,
+            // 代理提示框
+            showProxyAlert: false,
+            // 手动搜索状态
+            isSearching: false,
+            // 卡密过期/失效状态
+            cardExpired: false,
+            cardExpiredMessage: '',
+            // 版本检查相关
+            currentVersion: '1.0', // 当前版本号，需要与显示的版本号保持一致
+            latestVersion: null,   // 最新版本号
+            hasNewVersion: false,  // 是否有新版本
+            latestVersionInfo: null, // 最新版本完整信息
+            showVersionDialog: false, // 是否显示版本更新对话框
+            versionCompareResult: 0 // 版本比较结果：-1表示有新版本，0表示版本相同，1表示当前版本更高
+          }
+        },
+        computed: {
+          remainingDays() {
+            if (!this.cardEndDate) return -1;
+
+            try {
+              // 统一使用UTC时间计算，避免时区问题
+              const now = new Date();
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // 当天0点
+
+              // 解析结束日期，统一转换为日期（忽略时分秒）
+              let endDate;
+              if (this.cardEndDate.includes('T')) {
+                endDate = new Date(this.cardEndDate);
+              } else {
+                endDate = new Date(this.cardEndDate + 'T00:00:00');
+              }
+
+              if (isNaN(endDate.getTime())) {
+                console.error('无效的结束日期:', this.cardEndDate);
+                return -1;
+              }
+
+              // 转换为日期（忽略时分秒）
+              const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
+              // 计算天数差异
+              const diffTime = endDay - today;
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              return Math.max(0, diffDays);
+            } catch (error) {
+              console.error('计算剩余天数失败:', error);
+              return -1;
+            }
+          },
+
+          // 计算实际的总有效期天数（基于开始和结束日期）
+          actualTotalDays() {
+            if (!this.cardStartDate || !this.cardEndDate) return this.totalValidityDays;
+
+            try {
+              // 解析开始日期
+              let startDate;
+              if (this.cardStartDate.includes('T')) {
+                startDate = new Date(this.cardStartDate);
+              } else {
+                startDate = new Date(this.cardStartDate + 'T00:00:00');
+              }
+
+              // 解析结束日期
+              let endDate;
+              if (this.cardEndDate.includes('T')) {
+                endDate = new Date(this.cardEndDate);
+              } else {
+                endDate = new Date(this.cardEndDate + 'T00:00:00');
+              }
+
+              if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                return this.totalValidityDays;
+              }
+
+              // 转换为日期（忽略时分秒），确保计算一致性
+              const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+              const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+
+              // 计算天数差异
+              const diffTime = endDay - startDay;
+              const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+              // 如果开始日期和结束日期是同一天，应该算作1天
+              // 否则按实际天数差异计算
+              return diffDays === 0 ? 1 : diffDays;
+            } catch (error) {
+              console.error('计算总有效期失败:', error);
+              return this.totalValidityDays;
+            }
+          },
+          validityProgress() {
+            if (!this.cardStartDate || !this.cardEndDate) return 0;
+            const now = new Date();
+
+            // 处理日期格式
+            const startDateStr = this.cardStartDate.replace(' ', 'T') + (this.cardStartDate.includes('T') ? '' : 'T00:00:00');
+            const endDateStr = this.cardEndDate.replace(' ', 'T') + (this.cardEndDate.includes('T') ? '' : 'T00:00:00');
+
+            const startDate = new Date(startDateStr);
+            const endDate = new Date(endDateStr);
+
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+              console.error('无效的日期:', { start: this.cardStartDate, end: this.cardEndDate });
+              return 0;
+            }
+
+            const totalTime = endDate - startDate;
+            const usedTime = now - startDate;
+            const progress = Math.min(100, Math.max(0, (usedTime / totalTime) * 100));
+            return 100 - progress; // 显示剩余进度
+          },
+          formattedExpiryTime() {
+            if (!this.expiryTime || this.expiryTime === '未授权' || this.expiryTime === '未设置') {
+              return this.expiryTime;
+            }
+
+            try {
+              // 处理各种可能的时间格式
+              let dateStr = this.expiryTime;
+
+              // 如果包含T但没有时区信息，添加Z表示UTC
+              if (dateStr.includes('T') && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+                // 移除毫秒部分
+                dateStr = dateStr.replace(/\.\d+/, '');
+              }
+
+              const date = new Date(dateStr);
+
+              if (isNaN(date.getTime())) {
+                console.error('无效的日期格式:', this.expiryTime);
+                return this.expiryTime;
+              }
+
+              // 格式化为 YYYY-MM-DD HH:mm:ss
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              const hours = String(date.getHours()).padStart(2, '0');
+              const minutes = String(date.getMinutes()).padStart(2, '0');
+              const seconds = String(date.getSeconds()).padStart(2, '0');
+
+              return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            } catch (error) {
+              console.error('时间格式化错误:', error, this.expiryTime);
+              return this.expiryTime;
+            }
+          },
+          maskedCardCode() {
+            if (!this.cardCode || this.cardCode === '') {
+              return this.cardCode || '';
+            }
+
+            const code = this.cardCode;
+            if (code.length <= 8) {
+              // 如果授权码太短，只显示前2位和后2位
+              return code.substring(0, 2) + '****' + code.substring(code.length - 2);
+            } else {
+              // 显示前4位和后4位，中间用星号隐藏
+              return code.substring(0, 4) + '****' + code.substring(code.length - 4);
+            }
+          },
+
+          // 权限状态的CSS类名
+          permissionStatusClass() {
+            return this.permissionInfo.level;
+          },
+
+          // 权限状态的提示信息
+          permissionTooltip() {
+            if (this.permissionInfo.loading) {
+              return '正在检测程序运行权限...';
+            }
+            
+            const levelDescriptions = {
+              'administrator': '程序以管理员权限运行，拥有完整的系统访问权限',
+              'root': '程序以Root权限运行，拥有最高系统权限',
+              'sudo': '程序以Sudo用户运行，可以执行管理员操作',
+              'user': '程序以标准用户权限运行，权限受限',
+              'unknown': '无法检测程序运行权限'
+            };
+            
+            return levelDescriptions[this.permissionInfo.level] || '未知权限状态';
+          }
+        },
+        async mounted() {
+          await this.initApp();
+        },
+        methods: {
+          // 防抖函数，优化性能
+          debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+              const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+              };
+              clearTimeout(timeout);
+              timeout = setTimeout(later, wait);
+            };
+          },
+
+          // 更新加载状态
+          updateLoadingStatus(text, tip = '') {
+            const loadingText = document.getElementById('loading-text');
+            const loadingTip = document.getElementById('loading-tip');
+            if (loadingText) loadingText.textContent = text;
+            if (loadingTip && tip) loadingTip.textContent = tip;
+          },
+
+          // 隐藏加载遮罩
+          hideLoadingOverlay() {
+            const loadingOverlay = document.getElementById('app-loading');
+            if (loadingOverlay) {
+              loadingOverlay.classList.add('fade-out');
+              setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+              }, 500);
+            }
+          },
+
+          async initApp() {
+            try {
+              // 初始化应用
+              console.log('欢迎使用Kiro续杯工具 v1.0');
+              console.log('基于Python项目逻辑重构版本');
+              
+              // 安全机制：确保启动时所有对话框都是关闭状态
+              this.showSettingsDialog = false;
+              this.showCardDialog = false;
+              this.verifying = false;
+              this.isSelectingPath = false;
+              console.log('已重置所有对话框状态');
+              
+              // 添加安全计时器，防止对话框卡住
+              setTimeout(() => {
+                if (this.showSettingsDialog || this.isSelectingPath) {
+                  console.log('检测到对话框可能卡住，强制关闭');
+                  this.showSettingsDialog = false;
+                  this.isSelectingPath = false;
+                  ElMessage.info('检测到界面异常，已自动修复');
+                }
+              }, 5000);
+
+              // 加载设置
+              this.updateLoadingStatus('正在加载配置...', '读取应用设置中...');
+              await this.loadAppSettings();
+
+              // 自动检测Kiro版本
+              this.updateLoadingStatus('正在检测Kiro...', '正在查找Kiro安装路径...');
+              await this.detectKiroVersion();
+
+              // 检查本地缓存的授权码
+              this.updateLoadingStatus('正在加载授权信息...', '检查本地缓存...');
+              await this.checkCachedAuthCode();
+
+              // 获取最新公告
+              this.updateLoadingStatus('正在获取最新公告...', '连接服务器中，请稍候...');
+              await this.loadLatestNotice();
+
+              // 获取并显示启动弹窗
+              this.updateLoadingStatus('正在加载弹窗信息...', '获取最新通知...');
+              await this.loadAndShowPopup();
+
+              // 获取程序权限信息
+              this.updateLoadingStatus('正在检查权限...', '验证程序权限状态...');
+              await this.loadPermissionInfo();
+
+              // 检查版本更新
+              this.updateLoadingStatus('正在检查更新...', '获取最新版本信息...');
+              await this.checkVersionUpdate();
+
+              // 所有初始化完成
+              this.updateLoadingStatus('初始化完成！', '正在进入应用...');
+              
+              // 延迟500ms后隐藏加载遮罩，让用户看到"完成"状态
+              setTimeout(() => {
+                this.hideLoadingOverlay();
+              }, 500);
+
+            } catch (error) {
+              console.error('应用初始化失败:', error);
+              this.updateLoadingStatus('初始化出错', '但应用仍可使用，即将进入...');
+              setTimeout(() => {
+                this.hideLoadingOverlay();
+              }, 1000);
+            }
+          },
+
+          // 加载应用设置
+          async loadAppSettings() {
+            try {
+              const currentSettings = await ipcRenderer.invoke('get-settings');
+              this.settings = { ...this.settings, ...currentSettings };
+              console.log('已加载设置:', this.settings);
+            } catch (error) {
+              console.error('加载设置失败:', error);
+            }
+          },
+
+          // 自动检测Kiro版本
+          async detectKiroVersion() {
+            try {
+              console.log('正在检测Kiro版本...');
+
+              // 获取Kiro安装路径和版本信息
+              const pathsResult = await ipcRenderer.invoke('get-Kiro-paths');
+
+              if (pathsResult.error) {
+                console.error('检测Kiro版本失败:', pathsResult.error);
+                this.KiroVersion = '未检测';
+                ElMessage.warning('未检测到Kiro安装，请确保Kiro已正确安装');
+                return;
+              }
+
+              // 更新Kiro路径和版本信息
+              this.KiroPaths = pathsResult;
+              this.KiroVersion = pathsResult.version || '未知版本';
+
+              console.log(`检测到Kiro版本: ${this.KiroVersion}`);
+              console.log(`Kiro安装路径: ${pathsResult.basePath}`);
+
+            } catch (error) {
+              console.error('检测Kiro版本时发生错误:', error);
+              this.KiroVersion = '检测失败';
+              ElMessage.error('检测Kiro版本时发生错误');
+            }
+          },
+
+          // 检查本地缓存的授权码（优先从JSON文件加载）
+          async checkCachedAuthCode() {
+            try {
+              // 首先尝试从JSON文件加载
+              console.log('正在从JSON文件加载卡密信息...');
+              const cardInfo = await ipcRenderer.invoke('load-card-info');
+
+              if (cardInfo) {
+                console.log('从JSON文件加载卡密信息成功:', cardInfo.cardCode);
+
+                // 验证卡密是否仍然有效
+                const verifyResult = await ipcRenderer.invoke('verify-card-only', cardInfo.cardCode);
+
+                if (verifyResult.success) {
+                  console.log('JSON文件中的卡密验证成功');
+
+                  // 更新状态
+                  this.cardCode = cardInfo.cardCode;
+                  this.cardVerified = true;
+                  this.cardExpired = false; // 重置过期状态
+                  this.cardExpiredMessage = '';
+
+                  // 更新状态信息
+                  const apiCardInfo = verifyResult.data?.card_info || {};
+                  this.usedAccounts = apiCardInfo.used_count || 0;
+                  this.remainingAccounts = (apiCardInfo.total_count || 50) - this.usedAccounts;
+                  this.expiryTime = cardInfo.endTime || '未设置';
+
+                  // 设置卡密有效期信息
+                  if (cardInfo.endTime) {
+                    this.cardEndDate = cardInfo.endTime;
+                    this.cardStartDate = cardInfo.startTime || new Date().toISOString();
+                    this.totalValidityDays = parseInt(cardInfo.useDays || '30');
+                  }
+
+                  ElMessage.success('已自动加载保存的卡密信息');
+
+                  return;
+                } else {
+                  console.log('JSON文件中的卡密验证失败，清除文件');
+                  await ipcRenderer.invoke('clear-card-info');
+                  // 卡密验证失败，自动关闭代理
+                  await this.autoDisableProxy('JSON文件中的卡密验证失败');
+                }
+              }
+
+              // 如果JSON文件加载失败，尝试localStorage（兼容旧版本）
+              const cachedCode = localStorage.getItem('Kiro_auth_code');
+              if (cachedCode) {
+                console.log('发现localStorage中的授权码，正在验证...');
+
+                const verifyResult = await ipcRenderer.invoke('verify-card-only', cachedCode);
+
+                if (verifyResult.success) {
+                  const cardInfo = verifyResult.data?.card_info || {};
+                  const accountInfo = verifyResult.data?.account_info || {};
+
+                  console.log('localStorage中的授权码验证成功');
+
+                  // 验证成功，更新状态
+                  this.cardCode = cachedCode;
+                  this.cardVerified = true;
+                  this.cardExpired = false; // 重置过期状态
+                  this.cardExpiredMessage = '';
+
+                  // 更新状态信息
+                  this.usedAccounts = cardInfo.used_count || 0;
+                  this.remainingAccounts = (cardInfo.total_count || 50) - this.usedAccounts;
+                  this.expiryTime = cardInfo.end || cardInfo.expire_time || '未设置';
+
+                  // 设置卡密有效期信息
+                  const endTime = cardInfo.end || cardInfo.expire_time;
+                  const startTime = cardInfo.start || cardInfo.start_time;
+
+                  if (endTime) {
+                    this.cardEndDate = endTime;
+                    this.cardStartDate = startTime || new Date().toISOString();
+                    this.totalValidityDays = parseInt(cardInfo.usetime || cardInfo.validity_days || '30');
+                  }
+
+                  // 迁移到JSON文件（不包含token）
+                  const saveData = {
+                    cardCode: cachedCode,
+                    cardType: cardInfo.address || '专用',
+                    startTime: startTime || '',
+                    endTime: endTime || '',
+                    useDays: parseInt(cardInfo.usetime || '30'),
+                    email: accountInfo.email || ''
+                    // 不保存token，提高安全性
+                  };
+                  await ipcRenderer.invoke('save-card-info', saveData);
+
+                  // 清除localStorage
+                  localStorage.removeItem('Kiro_auth_code');
+                  console.log('已将localStorage数据迁移到JSON文件');
+
+                  ElMessage.success('已自动加载并迁移授权码');
+                } else {
+                  console.log('localStorage中的授权码验证失败，清除缓存');
+                  localStorage.removeItem('Kiro_auth_code');
+                  this.cardVerified = false;
+                  // 卡密验证失败，自动关闭代理
+                  await this.autoDisableProxy('localStorage中的卡密验证失败');
+                }
+              } else {
+                console.log('未发现任何缓存的授权码');
+              }
+            } catch (error) {
+              console.error('检查缓存授权码失败:', error);
+              // 如果验证失败，清除可能损坏的缓存
+              localStorage.removeItem('Kiro_auth_code');
+              await ipcRenderer.invoke('clear-card-info');
+              this.cardVerified = false;
+              // 验证失败，自动关闭代理
+              await this.autoDisableProxy('检查缓存授权码失败');
+            }
+          },
+
+          async pythonStyleRenewal() {
+            // 检查是否在冷却期间
+            if (this.refreshKiroCooldown) {
+              const minutes = Math.floor(this.refreshKiroCountdown / 60);
+              const seconds = this.refreshKiroCountdown % 60;
+              ElMessage.warning(`请等待 ${minutes}:${String(seconds).padStart(2, '0')} 后再试`);
+              return;
+            }
+
+            // 显示温馨提示弹窗
+            try {
+              await ElMessageBox.confirm(
+                `<div class="refresh-tip-content">
+                  <div class="tip-icon">⏳</div>
+                  <div class="tip-title">温馨提示</div>
+                  <div class="tip-message">
+                    <p class="tip-main">刷新完成后，Kiro 需要一点时间"加载"～</p>
+                    <div class="tip-steps">
+                      <div class="tip-step">
+                        <span class="step-icon">🚀</span>
+                        <span class="step-text">刷新完成后，Kiro 会自动启动</span>
+                      </div>
+                      <div class="tip-step">
+                        <span class="step-icon">⏰</span>
+                        <span class="step-text">请耐心等待 <strong>10-30秒</strong> 让它完全加载</span>
+                      </div>
+                      <div class="tip-step">
+                        <span class="step-icon">✨</span>
+                        <span class="step-text">Kiro完全加载后再继续进行对话！</span>
+                      </div>
+                    </div>
+                    <div class="tip-footer">
+                      <span class="footer-icon">💡</span>
+                      <span class="footer-text">提早使用可能会导致卡缓存，无法使用</span>
+                    </div>
+                  </div>
+                </div>`,
+                ' ',
+                {
+                  confirmButtonText: '我知道了，继续 ✓',
+                  cancelButtonText: '取消',
+                  customClass: 'Kiro-refresh-tip',
+                  dangerouslyUseHTMLString: true,
+                  showClose: false,
+                  closeOnClickModal: false,
+                  closeOnPressEscape: true,
+                  center: false
+                }
+              );
+            } catch (err) {
+              // 用户点击了取消按钮
+              console.log('用户取消了刷新操作');
+              return;
+            }
+
+            try {
+              this.processing = true;
+
+              // 重置步骤状态
+              this.stepStatus = ['pending', 'pending'];
+
+              console.log(`开始Python风格续杯流程，卡密: ${this.cardCode}`);
+
+              // 步骤1: 处理授权码
+              this.stepStatus[0] = 'processing';
+              console.log('正在验证授权码...');
+
+              // 获取Kiro安装路径
+              const pathsResult = await ipcRenderer.invoke('get-Kiro-paths');
+
+              if (pathsResult.error) {
+                throw new Error(pathsResult.error);
+              }
+
+              this.KiroPaths = pathsResult;
+              this.KiroVersion = pathsResult.version || '未知版本';
+              console.log(`找到Kiro安装路径: ${this.KiroPaths.basePath}`);
+              console.log(`Kiro版本: ${this.KiroVersion}`);
+
+              // 续杯卡密（调用 renew-card 接口，会返回账号信息）
+              const verifyResult = await ipcRenderer.invoke('renew-card', this.cardCode);
+
+              if (!verifyResult.success) {
+                const errorMessage = verifyResult.error || '未知错误';
+                
+                // 检查是否为频率限制错误
+                const isRateLimitError = errorMessage && (
+                  errorMessage.includes('频繁') ||
+                  errorMessage.includes('请稍后') ||
+                  errorMessage.includes('分钟后再试') ||
+                  errorMessage.includes('小时后再试') ||
+                  errorMessage.includes('请等待')
+                );
+                
+                // 检查是否为卡密失效错误
+                const isCardInvalidError = errorMessage && (
+                  errorMessage.includes('卡密已过期') ||
+                  errorMessage.includes('卡密无效') ||
+                  errorMessage.includes('卡密不存在') ||
+                  errorMessage.includes('卡密已使用完') ||
+                  errorMessage.includes('授权码无效') ||
+                  errorMessage.includes('授权码已过期') ||
+                  errorMessage.includes('授权码不存在')
+                );
+                
+                if (isRateLimitError) {
+                  // 频率限制错误，不关闭代理，只抛出错误
+                  console.log('检测到频率限制错误，不关闭代理配置');
+                  throw new Error(errorMessage);
+                } else if (isCardInvalidError) {
+                  // 卡密真正失效，关闭代理并禁用功能
+                  console.log('检测到卡密失效错误，自动关闭代理配置');
+                  await this.autoDisableProxy('刷新Kiro时卡密验证失败');
+                  throw new Error(errorMessage);
+                } else {
+                  // 其他验证失败错误，为安全起见也关闭代理
+                  console.log('检测到其他验证失败错误，自动关闭代理配置');
+                  await this.autoDisableProxy('刷新Kiro时卡密验证失败');
+                  throw new Error(errorMessage);
+                }
+              }
+
+              const cardInfo = verifyResult.data?.card_info || {};
+              const accountInfo = verifyResult.data?.account_info || {};
+
+              // 验证成功，重置过期状态
+              this.cardVerified = true;
+              this.cardExpired = false;
+              this.cardExpiredMessage = '';
+
+              this.stepStatus[0] = 'completed';
+              console.log(`授权码验证成功: ${cardInfo.card || this.cardCode}`);
+              console.log(`账号信息: ${accountInfo.email || '测试账号'}`);
+
+              // 设置卡密有效期信息
+              const endTime = cardInfo.end || cardInfo.expire_time;
+              const startTime = cardInfo.start || cardInfo.start_time;
+              if (endTime) {
+                this.cardEndDate = endTime;
+                this.cardStartDate = startTime || new Date().toISOString();
+                this.totalValidityDays = parseInt(cardInfo.usetime || cardInfo.validity_days || '30');
+              }
+
+              // 更新状态信息
+              this.usedAccounts = cardInfo.used_count || 0;
+              this.remainingAccounts = (cardInfo.total_count || 50) - this.usedAccounts;
+              this.expiryTime = cardInfo.end || cardInfo.expire_time || '未设置';
+
+              // 用于保存工作区路径的变量（贯穿整个流程）
+              let savedWorkspace = null;
+
+              // ========== 【重要】第一步：搜索数据库并保存工作区 ==========
+              this.stepStatus[1] = 'processing';
+              console.log('========== 步骤1：搜索数据库并保存工作区 ==========');
+              console.log('正在搜索Kiro数据库...');
+              ElMessage.info('正在搜索Kiro数据库...');
+
+              // 搜索所有用户目录中的Kiro数据库
+              const dbSearchResult = await ipcRenderer.invoke('find-all-Kiro-databases');
+              
+              if (!dbSearchResult.success) {
+                throw new Error(`搜索数据库失败: ${dbSearchResult.error}`);
+              }
+
+              const foundDatabases = dbSearchResult.databases;
+              console.log(`找到 ${foundDatabases.length} 个Kiro数据库`);
+
+              if (foundDatabases.length === 0) {
+                // 改进错误提示，提供更多信息
+                console.log('全盘搜索完成但未找到数据库，可能原因:');
+                console.log('1. Kiro尚未运行过或未完成初始化');
+                console.log('2. Kiro数据库位于非标准路径');
+                console.log('3. 数据库文件权限问题');
+                
+                throw new Error('未找到Kiro数据库文件。可能Kiro尚未运行过，或数据库位于非标准路径。建议使用手动搜索功能。');
+              }
+
+              let selectedDatabase;
+
+              if (foundDatabases.length === 1) {
+                // 只有一个数据库，直接使用
+                selectedDatabase = foundDatabases[0];
+                console.log(`✓ 使用唯一的数据库: ${selectedDatabase.username} (${selectedDatabase.path})`);
+                ElMessage.info(`使用用户 ${selectedDatabase.username} 的Kiro数据库`);
+              } else {
+                // 多个数据库，让用户选择
+                console.log('找到多个数据库，让用户选择...');
+                
+                try {
+                  selectedDatabase = await this.selectDatabase(foundDatabases);
+                  console.log(`✓ 用户选择的数据库: ${selectedDatabase.username} (${selectedDatabase.path})`);
+                } catch (selectionError) {
+                  throw new Error('用户取消选择数据库');
+                }
+              }
+
+              // ========== 步骤2：保存工作区并关闭Kiro ==========
+              console.log('========== 步骤2：保存工作区并关闭Kiro ==========');
+              
+              try {
+                const isRunning = await ipcRenderer.invoke('check-Kiro-running');
+
+                if (isRunning) {
+                  console.log('✓ 检测到Kiro正在运行');
+                  
+                  // 在关闭前，先保存当前工作区路径
+                  console.log('正在保存当前工作区路径...');
+                  try {
+                    const saveResult = await ipcRenderer.invoke('save-current-workspace', selectedDatabase.path);
+                    if (saveResult.success) {
+                      savedWorkspace = saveResult.workspace;
+                      console.log(`✓ 工作区路径已保存: ${savedWorkspace}`);
+                    } else {
+                      console.warn('⚠ 保存工作区失败:', saveResult.error);
+                    }
+                  } catch (saveError) {
+                    console.warn('⚠ 保存工作区时出错:', saveError);
+                  }
+                  
+                  // 现在关闭Kiro（会循环检测直到所有进程完全关闭）
+                  console.log('正在强制关闭Kiro（将确保所有进程完全关闭）...');
+                  ElMessage.warning('正在关闭Kiro，请稍候...');
+                  
+                  const closeResult = await ipcRenderer.invoke('force-close-Kiro');
+                  if (closeResult.success) {
+                    console.log('✓ 所有Kiro进程已确认完全关闭');
+                    ElMessage.success('Kiro已完全关闭');
+                    // 额外等待1秒确保数据库锁完全释放
+                    console.log('等待1秒以确保数据库锁完全释放...');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    console.log('✓ 准备就绪，可以继续执行后续操作');
+                  } else {
+                    // 进程关闭失败，这是严重问题，应该终止流程
+                    console.error('✗ 无法关闭所有Kiro进程:', closeResult.error);
+                    
+                    if (closeResult.warning) {
+                      // 这是警告级别的失败，给用户选择是否继续
+                      ElMessage.error({
+                        message: closeResult.error + '。建议手动关闭所有Kiro窗口后重试！',
+                        duration: 5000
+                      });
+                    } else {
+                      ElMessage.error({
+                        message: '关闭Kiro进程失败：' + closeResult.error,
+                        duration: 5000
+                      });
+                    }
+                    
+                    // 抛出错误以终止流程
+                    throw new Error('无法确保Kiro进程完全关闭，为避免数据库冲突，流程已终止');
+                  }
+                } else {
+                  console.log('✓ Kiro未运行，无需关闭');
+                  ElMessage.info('Kiro未运行，直接执行后续操作');
+                }
+              } catch (closeError) {
+                console.error('✗ 检查或关闭Kiro时出错:', closeError);
+                // 如果是我们抛出的错误，直接抛出
+                if (closeError.message.includes('无法确保Kiro进程完全关闭')) {
+                  throw closeError;
+                }
+                // 其他错误显示警告
+                ElMessage.warning('检查或关闭Kiro时出错：' + closeError.message);
+                throw new Error('关闭Kiro过程出现异常');
+              }
+
+              // 步骤3: 退出当前登录账号
+              console.log('========== 步骤3：退出当前登录账号 ==========');
+              console.log(`正在退出当前登录账号...`);
+              
+              // 步骤3.1: 退出当前登录的账号
+              try {
+                const logoutResult = await ipcRenderer.invoke('logout-current-Kiro-account', selectedDatabase.path);
+                if (logoutResult.success) {
+                  console.log('✓ 当前账号退出成功:', logoutResult.message);
+                  console.log('✓ 已清除的登录信息键:', logoutResult.deletedKeys);
+                } else {
+                  console.warn('⚠ 退出登录失败，但继续执行:', logoutResult.error);
+                }
+              } catch (logoutError) {
+                console.warn('⚠ 退出登录过程中出错，但继续执行:', logoutError.message);
+              }
+
+              // 步骤4: 执行账号切换、重置机器ID、修改注册表
+              console.log('========== 步骤4：账号切换+重置机器ID+修改注册表 ==========');
+              console.log(`正在执行 Kiro 账号切换...`);
+              console.log(`邮箱: ${accountInfo.email}`);
+              console.log(`密码: ${accountInfo.pwd ? '已提供' : '未提供'}`);
+
+              // 步骤4.1: 执行新的账号切换（使用 kiro-auth.js）
+              const switchResult = await ipcRenderer.invoke('windsurf-account-switch',
+                accountInfo.email || `user_${Date.now()}@Kirorenew.com`,
+                accountInfo.refreshToken,
+                accountInfo.clientId,
+                accountInfo.clientSecret
+              );
+
+              if (!switchResult.success) {
+                throw new Error(`账号切换失败: ${switchResult.error}`);
+              }
+
+              this.stepStatus[1] = 'completed';
+              console.log('✓ Kiro 账号切换成功！');
+              console.log(`✓ 邮箱: ${switchResult.email}`);
+              console.log(`✓ Access Token: ${switchResult.accessToken ? switchResult.accessToken.substring(0, 50) + '...' : '无'}`);
+              console.log(`✓ 过期时间: ${switchResult.expiresAt}`);
+
+              // 步骤4.2: 记录使用
+              await ipcRenderer.invoke('record-usage', this.cardCode);
+
+              // 步骤5: 最后启动Kiro（使用保存的工作区）
+              console.log('========== 步骤5：最后启动Kiro ==========');
+              console.log('所有修改已完成，正在启动Kiro...');
+
+              try {
+                // 等待1秒确保所有文件都保存完毕
+                console.log('等待1秒以确保所有文件保存...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // 如果之前没有保存工作区（Kiro未运行），尝试从文件读取
+                if (!savedWorkspace) {
+                  console.log('尝试从备份文件读取工作区路径...');
+                  try {
+                    const loadResult = await ipcRenderer.invoke('load-saved-workspace', selectedDatabase.path);
+                    if (loadResult.success && loadResult.workspace) {
+                      savedWorkspace = loadResult.workspace;
+                      console.log(`✓ 从备份读取到工作区: ${savedWorkspace}`);
+                    }
+                  } catch (loadError) {
+                    console.warn('⚠ 读取工作区备份失败:', loadError);
+                  }
+                }
+                
+                // 启动Kiro，如果有保存的工作区则使用
+                const launchResult = await ipcRenderer.invoke('launch-Kiro', savedWorkspace);
+
+                if (launchResult.success) {
+                  if (savedWorkspace) {
+                    console.log('✓ Kiro启动成功（已恢复工作区）');
+                    ElMessage.success(`🎉 续杯成功！Kiro已启动并恢复到项目`);
+                  } else {
+                    console.log('✓ Kiro启动成功');
+                    ElMessage.success('🎉 续杯成功！Kiro已启动并应用新账号');
+                  }
+                } else {
+                  console.error('✗ Kiro启动失败:', launchResult.error);
+                  ElMessage.warning(`续杯成功！但Kiro启动失败: ${launchResult.error}，请手动启动Kiro`);
+                }
+
+              } catch (launchError) {
+                console.error('✗ Kiro启动流程出错:', launchError);
+                ElMessage.warning('续杯成功！但Kiro启动失败，请手动启动Kiro');
+              }
+
+              console.log('========================================');
+              console.log('🎉 Kiro续杯流程全部完成！');
+              console.log('========================================');
+
+              // 启动5分钟冷却
+              this.startRefreshKiroCooldown();
+
+            } catch (error) {
+              console.error('续杯过程出错:', error);
+              console.error(`❌ 错误: ${error.message}`);
+
+              // 更新当前步骤状态为错误
+              const currentStepIndex = this.stepStatus.findIndex(status => status === 'processing');
+              if (currentStepIndex !== -1) {
+                this.stepStatus[currentStepIndex] = 'error';
+              }
+
+              // 检测错误类型并显示相应提示
+              // 注意：卡密验证失败已在上面处理，这里只处理其他类型错误
+              if (error.message && error.message.includes('Could not locate the bindings file')) {
+                // better-sqlite3权限相关错误
+                console.log('检测到better-sqlite3权限错误，显示管理员权限提示');
+                this.showPermissionAlert = true;
+              } else if (error.message && (
+                error.message.includes('数据库文件不存在') || 
+                error.message.includes('未找到任何Kiro数据库文件') ||
+                error.message.includes('请确保Kiro已正确安装并至少运行过一次')
+              )) {
+                // 数据库文件不存在错误
+                console.log('检测到数据库文件不存在错误，显示Kiro初始化提示');
+                this.showKiroInitAlert = true;
+              } else if (error.message && error.message.includes('API请求失败')) {
+                // API请求失败错误（通常由代理引起）
+                console.log('检测到API请求失败错误，显示代理关闭提示');
+                this.showProxyAlert = true;
+              } else {
+                // 其他普通错误
+                ElMessage.error(`续杯失败: ${error.message}`);
+              }
+            } finally {
+              this.processing = false;
+            }
+          },
+
+          // 开始刷新Kiro按钮的冷却（5分钟）
+          startRefreshKiroCooldown() {
+            this.refreshKiroCooldown = true;
+            this.refreshKiroCountdown = 300; // 300秒 = 5分钟
+
+            const countdown = setInterval(() => {
+              this.refreshKiroCountdown--;
+
+              if (this.refreshKiroCountdown <= 0) {
+                clearInterval(countdown);
+                this.refreshKiroCooldown = false;
+                this.refreshKiroCountdown = 0;
+              }
+            }, 1000);
+          },
+
+          async openWebsite() {
+            try {
+              await ipcRenderer.invoke('open-external-url', 'https://www.xxdlzs.top/kiro');
+            } catch (error) {
+              console.error('打开官网失败:', error);
+              ElMessage.error('打开官网失败: ' + error.message);
+            }
+          },
+
+          // 禁用Kiro自动更新（带10秒冷却）
+          async checkUpdate() {
+            // 检查是否在冷却期间
+            if (this.disableUpdateCooldown) {
+              ElMessage.warning(`请等待 ${this.disableUpdateCountdown} 秒后再试`);
+              return;
+            }
+
+            try {
+              // 开始冷却
+              this.startDisableUpdateCooldown();
+
+              ElMessage.info('正在禁用Kiro自动更新...');
+
+              const result = await ipcRenderer.invoke('disable-Kiro-auto-update');
+
+              if (result.success) {
+                ElMessage.success('已成功禁用Kiro自动更新！重启Kiro后生效。');
+                console.log('禁用自动更新成功:', result);
+              } else {
+                ElMessage.error(`禁用自动更新失败: ${result.error}`);
+                console.error('禁用自动更新失败:', result.error);
+              }
+
+            } catch (error) {
+              console.error('禁用自动更新时发生错误:', error);
+              ElMessage.error('禁用自动更新时发生错误');
+            }
+          },
+
+          // 开始禁用更新按钮的冷却
+          startDisableUpdateCooldown() {
+            this.disableUpdateCooldown = true;
+            this.disableUpdateCountdown = 10;
+
+            const countdown = setInterval(() => {
+              this.disableUpdateCountdown--;
+
+              if (this.disableUpdateCountdown <= 0) {
+                clearInterval(countdown);
+                this.disableUpdateCooldown = false;
+                this.disableUpdateCountdown = 0;
+              }
+            }, 1000);
+          },
+
+          resetKiro() {
+            ElMessage.warning('初始化Kiro功能开发中...');
+          },
+
+          // 打开设置对话框
+          async openSettings() {
+            this.showSettingsDialog = true;
+
+            // 加载当前设置
+            try {
+              const currentSettings = await ipcRenderer.invoke('get-settings');
+              this.settings = { ...this.settings, ...currentSettings };
+              this.tempSettings = { ...this.settings };
+            } catch (error) {
+              console.error('加载设置失败:', error);
+              ElMessage.error('加载设置失败');
+            }
+          },
+
+          // 关闭设置对话框
+          closeSettingsDialog() {
+            this.showSettingsDialog = false;
+            this.tempSettings = { ...this.settings }; // 重置临时设置
+            this.isSelectingPath = false; // 确保重置选择路径状态
+          },
+
+          // 选择Kiro路径
+          async selectKiroPath() {
+            try {
+              this.isSelectingPath = true; // 设置选择路径状态为true
+              
+              // 创建一个超时Promise
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('选择路径操作超时')), 30000); // 30秒超时
+              });
+              
+              // 与文件对话框操作进行竞争
+              const selectedPath = await Promise.race([
+                ipcRenderer.invoke('open-folder-dialog'),
+                timeoutPromise
+              ]);
+              
+              if (selectedPath) {
+                this.tempSettings.customKiroPath = selectedPath;
+                console.log('选择的Kiro路径:', selectedPath);
+              }
+            } catch (error) {
+              console.error('选择路径失败:', error);
+              ElMessage.error('选择路径失败: ' + error.message);
+              // 发生错误时，自动关闭设置对话框，避免界面卡死
+              if (error.message.includes('超时')) {
+                this.closeSettingsDialog();
+              }
+            } finally {
+              this.isSelectingPath = false; // 无论成功或失败，都重置状态
+            }
+          },
+
+          // 保存设置
+          async saveSettings() {
+            try {
+              // 创建纯数据对象，避免序列化问题
+              const settingsToSave = {
+                autoCheckUpdate: this.tempSettings.autoCheckUpdate || false,
+                autoActivateOnStartup: this.tempSettings.autoActivateOnStartup || false,
+                debugMode: this.tempSettings.debugMode || false,
+                forceModifyMode: this.tempSettings.forceModifyMode || false,
+                customKiroPath: this.tempSettings.customKiroPath || ''
+              };
+
+              console.log('准备保存设置:', settingsToSave);
+
+              // 保存设置到主进程
+              const result = await ipcRenderer.invoke('save-settings', settingsToSave);
+
+              if (result) {
+                this.settings = { ...settingsToSave };
+                ElMessage.success('设置已保存');
+                this.closeSettingsDialog();
+
+                // 重新检测Kiro版本
+                await this.detectKiroVersion();
+              } else {
+                throw new Error('保存设置返回失败');
+              }
+
+            } catch (error) {
+              console.error('保存设置失败:', error);
+              ElMessage.error('保存设置失败: ' + error.message);
+            }
+          },
+
+          // 打开授权码设置对话框
+          openCardDialog() {
+            this.showCardDialog = true;
+            this.tempCardCode = this.cardCode;
+            this.verificationStatus = null;
+          },
+
+          // 关闭授权码设置对话框
+          closeCardDialog() {
+            this.showCardDialog = false;
+            this.tempCardCode = '';
+            this.verifying = false;
+            this.verificationStatus = null;
+          },
+
+          // 验证授权码
+          async verifyCard() {
+            if (!this.tempCardCode.trim()) {
+              this.verificationStatus = {
+                type: 'error',
+                message: '请输入授权码'
+              };
+              return;
+            }
+
+            try {
+              this.verifying = true;
+              this.verificationStatus = {
+                type: 'loading',
+                message: '正在验证授权码...'
+              };
+
+              // 调用验证接口（不更新数据库）
+              const verifyResult = await ipcRenderer.invoke('verify-card-only', this.tempCardCode);
+
+              if (verifyResult.success) {
+                // verify-card-only返回的是嵌套的data结构
+                const cardInfo = verifyResult.data?.card_info || {};
+                const accountInfo = verifyResult.data?.account_info || {};
+
+                // 调试信息
+                console.log('验证结果:', verifyResult);
+                console.log('卡密信息:', cardInfo);
+                console.log('账号信息:', accountInfo);
+
+                this.verificationStatus = {
+                  type: 'success',
+                  message: `验证中...`
+                };
+
+                // 验证成功，更新状态
+                this.cardCode = this.tempCardCode;
+                this.cardVerified = true;
+                this.cardExpired = false; // 重置过期状态
+                this.cardExpiredMessage = '';
+
+                // 设置卡密有效期信息
+                const endTime = cardInfo.end || cardInfo.expire_time;
+                const startTime = cardInfo.start || cardInfo.start_time;
+
+                // 保存卡密信息到JSON文件（不包含token）
+                const saveData = {
+                  cardCode: this.tempCardCode,
+                  cardType: cardInfo.address || '专用',
+                  startTime: startTime || '',
+                  endTime: endTime || '',
+                  useDays: parseInt(cardInfo.usetime || '30'),
+                  email: accountInfo.email || ''
+                  // 不保存token，提高安全性
+                };
+                await ipcRenderer.invoke('save-card-info', saveData);
+                console.log('卡密信息已保存到JSON文件');
+
+                // 更新状态信息
+                this.usedAccounts = cardInfo.used_count || 0;
+                this.remainingAccounts = (cardInfo.total_count || 50) - this.usedAccounts;
+                this.expiryTime = cardInfo.end || cardInfo.expire_time || '未设置';
+                console.log('原始时间数据:', { endTime, startTime, usetime: cardInfo.usetime });
+
+                if (endTime) {
+                  this.cardEndDate = endTime;
+                  this.cardStartDate = startTime || new Date().toISOString();
+                  this.totalValidityDays = parseInt(cardInfo.usetime || cardInfo.validity_days || '30');
+
+                  console.log('设置后的数据:', {
+                    cardEndDate: this.cardEndDate,
+                    cardStartDate: this.cardStartDate,
+                    totalValidityDays: this.totalValidityDays
+                  });
+                  console.log('计算结果:', {
+                    remainingDays: this.remainingDays,
+                    validityProgress: this.validityProgress
+                  });
+                } else {
+                  console.log('没有结束时间，无法设置有效期信息');
+                }
+
+                // 2秒后自动关闭对话框
+                setTimeout(async () => {
+                  this.closeCardDialog();
+                  ElMessage.success('授权码验证成功！');
+                }, 2000);
+
+              } else {
+                // 检测验证失败的错误类型
+                const errorMessage = verifyResult.error || '未知错误';
+                
+                // 卡密验证失败，自动关闭代理
+                await this.autoDisableProxy('手动验证卡密失败');
+                
+                if (errorMessage.includes('API请求失败')) {
+                  // API请求失败错误（通常由代理引起）
+                  console.log('验证失败时检测到API请求失败错误，显示代理关闭提示');
+                  this.showProxyAlert = true;
+                  // 关闭卡密对话框
+                  this.closeCardDialog();
+                } else {
+                  // 其他验证失败错误
+                  this.verificationStatus = {
+                    type: 'error',
+                    message: `验证失败: ${errorMessage}`
+                  };
+                }
+                this.cardVerified = false;
+              }
+
+            } catch (error) {
+              console.error('验证授权码失败:', error);
+              
+              // 验证失败，自动关闭代理
+              await this.autoDisableProxy('验证授权码异常');
+              
+              // 检测错误类型并显示相应提示
+              if (error.message && error.message.includes('API请求失败')) {
+                // API请求失败错误（通常由代理引起）
+                console.log('验证时检测到API请求失败错误，显示代理关闭提示');
+                this.showProxyAlert = true;
+                // 关闭卡密对话框
+                this.closeCardDialog();
+              } else {
+                // 其他错误显示在验证状态中
+                this.verificationStatus = {
+                  type: 'error',
+                  message: `验证失败: ${error.message}`
+                };
+              }
+              this.cardVerified = false;
+            } finally {
+              this.verifying = false;
+            }
+          },
+
+          // 清除缓存的授权码
+          async clearCachedAuthCode() {
+            try {
+              // 清除JSON文件
+              await ipcRenderer.invoke('clear-card-info');
+
+              // 清除localStorage（兼容性）
+              localStorage.removeItem('Kiro_auth_code');
+
+              this.cardCode = '';
+              this.cardVerified = false;
+              this.tempCardCode = '';
+
+              // 重置状态信息
+              this.usedAccounts = 0;
+              this.remainingAccounts = 0;
+              this.expiryTime = '未设置';
+              this.cardEndDate = null;
+              this.cardStartDate = null;
+              this.totalValidityDays = 30;
+
+              ElMessage.success('已清除缓存的授权码');
+              console.log('已清除本地缓存的授权码和JSON文件');
+            } catch (error) {
+              console.error('清除缓存失败:', error);
+              ElMessage.error('清除缓存失败');
+            }
+          },
+
+          // 获取程序权限信息
+          async loadPermissionInfo() {
+            try {
+              console.log('正在获取程序权限信息...');
+              this.permissionInfo.loading = true;
+
+              const permissionResult = await ipcRenderer.invoke('get-current-permissions');
+
+              if (permissionResult.success) {
+                this.permissionInfo = {
+                  level: permissionResult.level,
+                  description: permissionResult.description,
+                  loading: false,
+                  platform: permissionResult.platform,
+                  userId: permissionResult.userId,
+                  groupId: permissionResult.groupId
+                };
+                console.log(`程序权限检测成功: ${permissionResult.level} (${permissionResult.description})`);
+              } else {
+                console.error('权限检测失败:', permissionResult.error);
+                this.permissionInfo = {
+                  level: 'unknown',
+                  description: '检测失败',
+                  loading: false
+                };
+              }
+            } catch (error) {
+              console.error('获取权限信息时发生错误:', error);
+              this.permissionInfo = {
+                level: 'unknown',
+                description: '检测失败',
+                loading: false
+              };
+            }
+          },
+
+          // 获取最新公告
+          async loadLatestNotice() {
+            try {
+              this.isLoadingNotice = true;
+              console.log('正在获取最新公告...');
+
+              const result = await ipcRenderer.invoke('get-latest-notice');
+
+              if (result.success && result.data) {
+                this.notice = {
+                  title: result.data.title || '系统公告',
+                  content: result.data.content || '暂无公告内容',
+                  time: result.data.time || '',
+                  user: result.data.user || '系统'
+                };
+                console.log('公告加载成功:', this.notice);
+              } else {
+                // 使用默认公告
+                this.notice = {
+                  title: '系统公告',
+                  content: '暂无公告内容',
+                  time: '2024-07-06 17:10',
+                  user: '系统'
+                };
+                console.log('使用默认公告:', result.error || '未知错误');
+              }
+
+            } catch (error) {
+              console.error('获取公告失败:', error);
+              // 使用默认公告
+              this.notice = {
+                title: '系统公告',
+                content: '暂无公告内容',
+                time: '2024-07-06 17:10',
+                user: '系统'
+              };
+            } finally {
+              this.isLoadingNotice = false;
+            }
+          },
+
+          // 刷新公告
+          async refreshNotice() {
+            try {
+              console.log('手动刷新公告...');
+
+              await this.loadLatestNotice();
+
+              ElMessage.success('公告刷新成功！');
+            } catch (error) {
+              console.error('刷新公告失败:', error);
+              ElMessage.error('刷新公告失败: ' + error.message);
+            }
+          },
+
+          // 加载并显示启动弹窗
+          // 这个方法在应用启动时调用，用于显示重要通知
+          async loadAndShowPopup() {
+            try {
+              console.log('正在获取启动弹窗信息...');
+
+              const result = await ipcRenderer.invoke('get-latest-popup');
+
+              // 检查是否成功获取到弹窗数据
+              if (result && result.success && result.data) {
+                // 设置弹窗内容
+                this.popup = {
+                  show: true,
+                  title: result.data.title || '系统通知',
+                  content: result.data.content || '',         // 兼容旧版本
+                  updateInfo: result.data.updateInfo || '',   // 更新信息
+                  otherInfo: result.data.otherInfo || '',     // 其他信息
+                  updateDate: result.data.updateDate || '',   // 更新日期
+                  id: result.data.id || null
+                };
+                console.log('弹窗加载成功，将显示弹窗:', this.popup);
+              } else {
+                console.log('暂无启用的弹窗信息:', result.message || '未知原因');
+              }
+
+            } catch (error) {
+              console.error('获取弹窗失败:', error);
+              // 弹窗获取失败时不影响应用正常运行，只记录错误
+            }
+          },
+
+          // 关闭弹窗
+          closePopup() {
+            this.popup.show = false;
+            console.log('弹窗已关闭');
+          },
+
+          // 打开通知弹窗（手动触发）
+          async openPopupNotification() {
+            try {
+              console.log('手动打开通知弹窗');
+              
+              // 重新加载弹窗数据
+              await this.loadAndShowPopup();
+              
+              // 如果没有弹窗数据，显示提示
+              if (!this.popup.show) {
+                ElMessage.info('暂无新通知');
+              }
+            } catch (error) {
+              console.error('打开通知弹窗失败:', error);
+              ElMessage.error('获取通知失败');
+            }
+          },
+
+          // 显示二维码对话框
+          async showQrcodeDialog() {
+            try {
+              console.log('打开二维码对话框');
+              
+              // 显示对话框并开始加载
+              this.isQrcodeDialogVisible = true;
+              this.qrcodeLoading = true;
+              this.qrcodeImagePath = '';
+              this.qrcodeErrorMessage = '';
+
+              // 从后端获取二维码图片路径
+              const result = await ipcRenderer.invoke('get-qrcode-image');
+
+              if (result && result.success && result.imagePath) {
+                // 获取成功，设置图片路径
+                this.qrcodeImagePath = result.imagePath;
+                console.log('二维码获取成功:', result.imagePath);
+              } else {
+                // 获取失败，显示错误信息
+                this.qrcodeErrorMessage = result.message || '暂无二维码';
+                console.log('二维码获取失败:', this.qrcodeErrorMessage);
+              }
+
+            } catch (error) {
+              console.error('显示二维码失败:', error);
+              this.qrcodeErrorMessage = '加载二维码失败';
+            } finally {
+              // 结束加载状态
+              this.qrcodeLoading = false;
+            }
+          },
+
+          // 关闭二维码对话框
+          closeQrcodeDialog() {
+            this.isQrcodeDialogVisible = false;
+            this.qrcodeImagePath = '';
+            this.qrcodeErrorMessage = '';
+            console.log('二维码对话框已关闭');
+          },
+
+          // 获取完整的二维码图片URL
+          // 自动添加协议前缀，确保图片能正常加载
+          getQrcodeImageUrl(imagePath) {
+            if (!imagePath) {
+              console.error('❌ 图片路径为空');
+              return '';
+            }
+
+            console.log('🖼️ 原始图片路径:', imagePath);
+
+            // 如果已经包含协议，直接返回
+            if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+              console.log('✅ 图片URL已包含协议，直接返回:', imagePath);
+              return imagePath;
+            }
+
+            // 如果以 / 开头，拼接基础URL（使用HTTPS和域名）
+            if (imagePath.startsWith('/')) {
+              const fullUrl = 'https://www.xxdlzs.top' + imagePath;
+              console.log('🔗 拼接/开头的路径（使用域名）:', fullUrl);
+              return fullUrl;
+            }
+
+            // 如果路径不包含协议，判断是否需要添加域名
+            // 处理类似 "www.xxdlzs.top/csk/files/..." 的情况
+            if (imagePath.includes('www.xxdlzs.top')) {
+              const fullUrl = 'https://' + imagePath;
+              console.log('🔗 添加https://协议（域名）:', fullUrl);
+              return fullUrl;
+            }
+
+            // 处理类似 "139.199.225.37/csk/files/..." 的情况
+            if (imagePath.includes('139.199.225.37') || imagePath.match(/^\d+\.\d+\.\d+\.\d+/)) {
+              const fullUrl = 'http://' + imagePath;
+              console.log('🔗 添加http://协议（IP）:', fullUrl);
+              return fullUrl;
+            }
+
+            // 默认情况：使用域名拼接
+            const fullUrl = 'https://www.xxdlzs.top' + (imagePath.startsWith('/') ? '' : '/') + imagePath;
+            console.log('🔗 默认拼接（域名）:', fullUrl);
+            return fullUrl;
+          },
+
+          // 探索Kiro配置结构函数已移除
+
+          // 选择数据库
+          async selectDatabase(databases) {
+            return new Promise((resolve, reject) => {
+              this.availableDatabases = databases;
+              this.selectedDatabaseIndex = 0; // 默认选择第一个（最新修改的）
+              this.showDatabaseDialog = true;
+
+              // 监听选择结果
+              const handleSelection = (selected) => {
+                this.showDatabaseDialog = false;
+                if (selected === null) {
+                  reject(new Error('用户取消选择'));
+                } else {
+                  resolve(selected);
+                }
+              };
+
+              // 存储回调以便在对话框中使用
+              this._databaseSelectionCallback = handleSelection;
+            });
+          },
+
+          // 确认数据库选择
+          confirmDatabaseSelection() {
+            const selected = this.availableDatabases[this.selectedDatabaseIndex];
+            if (this._databaseSelectionCallback) {
+              this._databaseSelectionCallback(selected);
+              this._databaseSelectionCallback = null;
+            }
+          },
+
+          // 取消数据库选择
+          cancelDatabaseSelection() {
+            if (this._databaseSelectionCallback) {
+              this._databaseSelectionCallback(null);
+              this._databaseSelectionCallback = null;
+            }
+          },
+
+          // 关闭权限提示框
+          closePermissionAlert() {
+            this.showPermissionAlert = false;
+          },
+
+          // 关闭Kiro初始化提示框
+          closeKiroInitAlert() {
+            this.showKiroInitAlert = false;
+          },
+
+          // 手动搜索Kiro数据库
+          async manualSearchDatabase() {
+            try {
+              this.isSearching = true;
+              
+              ElMessage.info('请选择要搜索的目录...');
+              
+              // 打开文件夹选择对话框
+              const searchPath = await ipcRenderer.invoke('open-folder-dialog');
+              
+              if (!searchPath) {
+                ElMessage.info('已取消搜索');
+                return;
+              }
+              
+              console.log('用户选择的搜索路径:', searchPath);
+              ElMessage.info('正在搜索Kiro数据库，请稍候...');
+              
+              // 执行手动搜索
+              const searchResult = await ipcRenderer.invoke('manual-search-Kiro-database', searchPath);
+              
+              if (searchResult.success && searchResult.databases.length > 0) {
+                console.log('手动搜索找到数据库:', searchResult.databases);
+                
+                // 关闭当前提示框
+                this.showKiroInitAlert = false;
+                
+                // 如果找到多个数据库，让用户选择
+                if (searchResult.databases.length === 1) {
+                  ElMessage.success(`找到数据库！路径: ${searchResult.databases[0].path}`);
+                } else {
+                  ElMessage.success(`找到 ${searchResult.databases.length} 个数据库，请选择要使用的数据库`);
+                  
+                  // 模拟数据库选择流程
+                  this.availableDatabases = searchResult.databases;
+                  this.selectedDatabaseIndex = 0;
+                  this.showDatabaseDialog = true;
+                }
+                
+              } else if (searchResult.success && searchResult.databases.length === 0) {
+                ElMessage.warning(`在路径 "${searchPath}" 中未找到Kiro数据库文件`);
+              } else {
+                ElMessage.error(`搜索失败: ${searchResult.error}`);
+              }
+              
+            } catch (error) {
+              console.error('手动搜索数据库失败:', error);
+              ElMessage.error('手动搜索失败: ' + error.message);
+            } finally {
+              this.isSearching = false;
+            }
+          },
+
+          // 关闭代理提示框
+          closeProxyAlert() {
+            this.showProxyAlert = false;
+          },
+
+          // 打开帮助文档
+          openHelpDocument() {
+            // 使用Electron的shell模块打开外部链接
+            ipcRenderer.invoke('open-external-url', 'https://www.yuque.com/dongxiao-f0zme/vx4792/azhei77f89wz4kqo?singleDoc#');
+            // 同时关闭提示框
+            this.closeProxyAlert();
+          },
+
+          // 打开Kiro常见问题处理页面
+          openHelpPage() {
+            try {
+              // 使用Electron的shell模块打开外部链接
+              ipcRenderer.invoke('open-external-url', 'https://www.yuque.com/dongxiao-f0zme/ovcxs6/xpg9b7twkuk05g72?singleDoc#');
+              console.log('打开Kiro常见问题处理页面');
+            } catch (error) {
+              console.error('打开帮助页面失败:', error);
+              ElMessage.error('打开帮助页面失败: ' + error.message);
+            }
+          },
+
+          // 格式化文件大小
+          formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+          },
+
+          // 格式化修改时间
+          formatModifiedTime(date) {
+            return new Date(date).toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          },
+
+          formatTime(timeString) {
+            if (!timeString) return '未知';
+            try {
+              const date = new Date(timeString);
+              return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              });
+            } catch (error) {
+              return timeString;
+            }
+          },
+
+          // 自动关闭代理配置（卡密验证失败时调用）
+          async autoDisableProxy(reason = '卡密验证失败') {
+            try {
+              console.log(`${reason}，自动关闭代理配置并禁用相关功能...`);
+              
+              // 1. 设置卡密状态为失效/过期
+              this.cardVerified = false;
+              this.cardExpired = true;
+              this.cardExpiredMessage = reason;
+              console.log('✓ 卡密状态已设置为失效/过期');
+              
+              // 2. 重置卡密有效期相关数据
+              this.cardStartDate = null;
+              this.cardEndDate = null;
+              this.totalValidityDays = 30;
+              this.expiryTime = '未授权';
+              this.usedAccounts = 0;
+              this.remainingAccounts = 0;
+              this.cardCode = '';
+              console.log('✓ 卡密有效期信息已清空');
+
+              console.log('✓ 相关功能已全部禁用');
+            } catch (error) {
+              console.error('自动清理失败:', error);
+            }
+          },
+
+          // 检查版本更新
+          async checkVersionUpdate() {
+            try {
+              console.log('检查版本更新...');
+              const result = await ipcRenderer.invoke('get-latest-tool-version');
+              
+              if (result && result.success && result.data) {
+                this.latestVersionInfo = result.data;
+                this.latestVersion = result.data.version;
+                
+                console.log(`当前版本: "${this.currentVersion}" (类型: ${typeof this.currentVersion})`);
+                console.log(`最新版本: "${this.latestVersion}" (类型: ${typeof this.latestVersion})`);
+                
+                // 确保版本号都是字符串
+                const currentVer = String(this.currentVersion).trim();
+                const latestVer = String(this.latestVersion).trim();
+                
+                console.log(`处理后 - 当前版本: "${currentVer}", 最新版本: "${latestVer}"`);
+                
+                // 比较版本号
+                const compareResult = this.compareVersions(currentVer, latestVer);
+                console.log(`版本比较结果: ${compareResult} (${currentVer} vs ${latestVer})`);
+                
+                // 保存比较结果
+                this.versionCompareResult = compareResult;
+                
+                if (compareResult < 0) {
+                  // 当前版本小于最新版本，显示更新提示
+                  this.hasNewVersion = true;
+                  console.log('✅ 发现新版本！');
+                } else if (compareResult === 0) {
+                  // 版本相同
+                  this.hasNewVersion = false;
+                  console.log('✅ 当前已是最新版本（版本相同）');
+                } else {
+                  // 当前版本大于最新版本
+                  this.hasNewVersion = false;
+                  console.log('✅ 当前版本高于最新版本');
+                }
+              } else {
+                console.log('无法获取版本信息:', result?.message || '未知错误');
+                this.hasNewVersion = false;
+              }
+            } catch (error) {
+              console.error('检查版本更新失败:', error);
+              this.hasNewVersion = false;
+            }
+          },
+
+          // 比较版本号（返回 -1: v1<v2, 0: v1=v2, 1: v1>v2）
+          compareVersions(v1, v2) {
+            console.log(`📊 开始比较版本: "${v1}" vs "${v2}"`);
+            
+            // 确保输入都是字符串
+            const version1 = String(v1).trim();
+            const version2 = String(v2).trim();
+            
+            // 如果版本号完全相同，直接返回0
+            if (version1 === version2) {
+              console.log(`📊 版本号完全相同: "${version1}" === "${version2}" → 返回 0`);
+              return 0;
+            }
+            
+            const parts1 = version1.split('.').map(part => {
+              const num = parseInt(part, 10);
+              return isNaN(num) ? 0 : num;
+            });
+            const parts2 = version2.split('.').map(part => {
+              const num = parseInt(part, 10);
+              return isNaN(num) ? 0 : num;
+            });
+            
+            console.log(`📊 版本号分解: [${parts1.join(', ')}] vs [${parts2.join(', ')}]`);
+            
+            const maxLength = Math.max(parts1.length, parts2.length);
+            for (let i = 0; i < maxLength; i++) {
+              const p1 = parts1[i] || 0;
+              const p2 = parts2[i] || 0;
+              
+              console.log(`📊 比较第${i}位: ${p1} vs ${p2}`);
+              
+              if (p1 < p2) {
+                console.log(`📊 ${p1} < ${p2} → 返回 -1`);
+                return -1;
+              }
+              if (p1 > p2) {
+                console.log(`📊 ${p1} > ${p2} → 返回 1`);
+                return 1;
+              }
+            }
+            
+            console.log(`📊 所有位都相等 → 返回 0`);
+            return 0;
+          },
+
+          // 显示版本更新对话框
+          showVersionUpdateDialog() {
+            this.showVersionDialog = true;
+          },
+
+          // 关闭版本更新对话框
+          closeVersionDialog() {
+            this.showVersionDialog = false;
+          },
+
+          // 前往下载页面
+          async openDownloadPage() {
+            try {
+              const downloadPageUrl = 'https://wwqb.lanzn.com/b01398mo2b';
+              await ipcRenderer.invoke('open-external-url', downloadPageUrl);
+              ElMessage.success('已打开下载页面');
+            } catch (error) {
+              console.error('打开下载页面失败:', error);
+              ElMessage.error('打开下载页面失败: ' + error.message);
+            }
+          },
+
+          // 下载新版本
+          async downloadNewVersion() {
+            try {
+              if (this.latestVersionInfo && this.latestVersionInfo.download_url) {
+                // 使用Electron的shell模块打开下载链接
+                await ipcRenderer.invoke('open-external-url', this.latestVersionInfo.download_url);
+                ElMessage.success('已打开下载链接，请下载最新版本');
+              } else {
+                ElMessage.error('下载链接不可用');
+              }
+            } catch (error) {
+              console.error('打开下载链接失败:', error);
+              ElMessage.error('打开下载链接失败: ' + error.message);
+            }
+          }
+        },
+        watch: {
+        }
+      }).use(ElementPlus).mount('#app');
+    }
+    
+    // 在DOM内容加载完成后初始化应用
+    document.addEventListener('DOMContentLoaded', function() {
+      // 延迟一点初始化，确保所有资源加载完成
+      setTimeout(initApp, 100);
+    });
+  </script>
+
+  <script>
+    // 窗口控制函数
+    function minimizeWindow() {
+      const { ipcRenderer } = require('electron');
+      ipcRenderer.send('minimize-window');
+    }
+
+    function closeWindow() {
+      const { ipcRenderer } = require('electron');
+      ipcRenderer.send('close-window');
+    }
+  </script>
+</body>
+</html>

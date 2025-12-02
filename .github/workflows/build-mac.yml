@@ -1,0 +1,51 @@
+name: Build macOS App
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  # 或者推送到 main 分支时触发
+  # push:
+  #   branches: [ main ]
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Remove Windows-only dependencies
+        run: |
+          # 移除 Windows 专用依赖，避免在 macOS 上安装失败
+          npm pkg delete dependencies.win-dpapi
+          npm pkg delete dependencies.koffi
+      
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+      
+      - name: Rebuild native modules for macOS
+        run: |
+          npm rebuild better-sqlite3
+      
+      - name: Build macOS App
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: List build outputs
+        run: ls -la dist/
+      
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          retention-days: 30
