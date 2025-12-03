@@ -1566,18 +1566,22 @@
 
     /* 刷新Kiro提示弹窗样式 */
     .Kiro-refresh-tip {
-      border-radius: 16px !important;
-      overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
-      margin-left: 10px;
       width: 400px !important;
       max-width: 90vw !important;
+      border: none !important;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+      padding: 0 !important;
+      border-radius: 16px !important;
+      overflow: hidden !important;
     }
 
     .Kiro-refresh-tip .el-message-box {
       width: 100% !important;
-      background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
-      border: 1px solid rgba(100, 116, 139, 0.3) !important;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
     }
 
     .Kiro-refresh-tip .el-message-box__header {
@@ -1615,8 +1619,19 @@
 
     /* 弹窗内容容器 */
     .refresh-tip-content {
-      padding: 30px 30px 25px;
-      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      padding: 30px 25px 30px 55px;
+      background: transparent;
+      text-align: center;
+    }
+    
+    .refresh-tip-content .tip-message {
+      text-align: center;
+    }
+    
+    .refresh-tip-content .tip-steps {
+      text-align: left;
+      display: inline-block;
+      width: 100%;
     }
     
     /* 顶部图标 */
@@ -1718,11 +1733,12 @@
 
     /* 按钮样式 */
     .Kiro-refresh-tip .el-message-box__btns {
-      padding: 0 30px 30px !important;
+      padding: 0 30px 24px !important;
       display: flex;
       gap: 12px;
       justify-content: center;
-      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      background: transparent !important;
+      margin: 0 !important;
     }
 
     .Kiro-refresh-tip .el-button--primary {
@@ -2434,6 +2450,86 @@
       </div>
     </div>
 
+    <!-- 用户协议弹窗 -->
+    <div v-if="showAgreementDialog" class="dialog-overlay" style="z-index: 10001;">
+      <div class="dialog-content" style="width: 580px; max-width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0;">
+        <div class="dialog-title" style="display: flex; align-items: center; justify-content: center; padding: 16px 20px; border-bottom: 1px solid rgba(148, 163, 184, 0.2); flex-shrink: 0;">
+          <span style="font-size: 18px; font-weight: 700; color: #38bdf8;">📜 用户协议与免责声明</span>
+        </div>
+        
+        <div ref="agreementContent" @scroll="onAgreementScroll" style="flex: 1; overflow-y: auto; padding: 20px; min-height: 0;">
+          <div style="font-size: 13px; line-height: 1.8; color: #ccc;">
+            <p style="margin-bottom: 12px; color: #f0a020; font-weight: bold;">⚠️ 重要提示：请在使用本插件前仔细阅读以下声明</p>
+            
+            <p style="margin-bottom: 10px;"><strong>1. 软件修改授权</strong></p>
+            <p style="margin-bottom: 12px; padding-left: 12px;">本插件运行时将对您本地安装的 Kiro 编辑器相关文件进行必要的修改，以实现账号切换功能。您确认并同意授权本插件执行上述修改操作，此操作完全基于您的自主意愿和明确授权。</p>
+            
+            <p style="margin-bottom: 10px;"><strong>2. 数据安全承诺</strong></p>
+            <p style="margin-bottom: 12px; padding-left: 12px;">本插件<span style="color: #4ec9b0;">不会收集、读取、上传或以任何方式获取</span>您的项目代码、源文件、个人文档及任何敏感数据。插件仅与授权服务器进行必要的激活验证通信。</p>
+            
+            <p style="margin-bottom: 10px;"><strong>3. 使用风险告知</strong></p>
+            <p style="margin-bottom: 12px; padding-left: 12px;">使用本插件可能存在以下风险：<br>
+            • Kiro 官方更新后可能导致插件功能失效<br>
+            • 修改操作可能影响 Kiro 的正常运行<br>
+            • 您的账号可能因违反 Kiro 服务条款而受到限制<br>
+            您理解并自愿承担上述风险。</p>
+            
+            <p style="margin-bottom: 10px;"><strong>4. 责任限制</strong></p>
+            <p style="margin-bottom: 12px; padding-left: 12px;">本插件按"现状"提供，开发者不对因使用本插件而导致的任何直接或间接损失承担责任，包括但不限于数据丢失、软件故障、账号封禁、业务中断等。</p>
+            
+            <p style="margin-bottom: 10px;"><strong>5. 合法使用</strong></p>
+            <p style="margin-bottom: 12px; padding-left: 12px;">您承诺将本插件用于合法用途，不得利用本插件从事任何违法违规活动。因违规使用产生的一切法律责任由您自行承担。</p>
+            
+            <p style="margin-bottom: 10px;"><strong>6. 知情同意</strong></p>
+            <p style="margin-bottom: 12px; padding-left: 12px;">点击"同意并继续"即表示您已完全阅读、理解并接受本声明的全部内容，确认是在<span style="color: #4ec9b0;">完全知情且自愿</span>的情况下使用本插件，授权本插件对您的 Kiro 客户端进行必要的修改操作。</p>
+            
+            <p style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #444; color: #888; font-size: 12px;">
+              本声明最终解释权归插件开发者所有 | 更新日期：2025年11月30日
+            </p>
+          </div>
+        </div>
+        
+        <div style="padding: 16px 20px; border-top: 1px solid rgba(148, 163, 184, 0.2); flex-shrink: 0;">
+          <!-- 已阅读复选框 -->
+          <div style="display: flex; align-items: center; margin-bottom: 16px;">
+            <label 
+              style="display: flex; align-items: center; user-select: none;"
+              :style="{ cursor: agreementScrolledToBottom ? 'pointer' : 'not-allowed', opacity: agreementScrolledToBottom ? 1 : 0.5 }"
+            >
+              <input 
+                type="checkbox" 
+                v-model="agreementChecked" 
+                :disabled="!agreementScrolledToBottom"
+                style="width: 18px; height: 18px; margin-right: 10px; accent-color: #38bdf8;"
+                :style="{ cursor: agreementScrolledToBottom ? 'pointer' : 'not-allowed' }"
+              >
+              <span style="color: #e2e8f0; font-size: 14px;">
+                {{ agreementScrolledToBottom ? '我已仔细阅读并理解上述全部内容' : '请先滚动阅读完整协议内容 ↓' }}
+              </span>
+            </label>
+          </div>
+          
+          <div class="dialog-buttons" style="gap: 12px;">
+            <button class="dialog-button secondary" @click="rejectAgreement" style="flex: 1;">
+              不同意，退出程序
+            </button>
+            <button 
+              class="dialog-button primary" 
+              @click="acceptAgreement" 
+              :disabled="!agreementChecked"
+              :style="{ 
+                flex: 1, 
+                background: agreementChecked ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #4b5563 0%, #374151 100%)',
+                cursor: agreementChecked ? 'pointer' : 'not-allowed',
+                opacity: agreementChecked ? 1 : 0.6
+              }">
+              同意并继续
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
   </div>
   <script>
@@ -2559,7 +2655,12 @@
             hasNewVersion: false,  // 是否有新版本
             latestVersionInfo: null, // 最新版本完整信息
             showVersionDialog: false, // 是否显示版本更新对话框
-            versionCompareResult: 0 // 版本比较结果：-1表示有新版本，0表示版本相同，1表示当前版本更高
+            versionCompareResult: 0, // 版本比较结果：-1表示有新版本，0表示版本相同，1表示当前版本更高
+            // 用户协议相关
+            showAgreementDialog: false, // 是否显示协议弹窗
+            agreementChecked: false, // 用户是否勾选了“已阅读”复选框
+            agreementAgreed: false, // 用户是否已同意协议
+            agreementScrolledToBottom: false // 是否已滚动到协议底部
           }
         },
         computed: {
@@ -2806,6 +2907,16 @@
               // 获取最新公告
               this.updateLoadingStatus('正在获取最新公告...', '连接服务器中，请稍候...');
               await this.loadLatestNotice();
+
+              // 检查用户协议同意状态
+              this.updateLoadingStatus('正在检查用户协议...', '验证协议状态...');
+              const agreementAccepted = await this.checkAndShowAgreement();
+              
+              // 如果用户未同意协议，停止后续初始化（用户需要先同意协议）
+              if (!agreementAccepted) {
+                console.log('等待用户同意协议...');
+                return; // 暂停初始化，等待用户同意协议后继续
+              }
 
               // 获取并显示启动弹窗
               this.updateLoadingStatus('正在加载弹窗信息...', '获取最新通知...');
@@ -4250,6 +4361,108 @@
             } catch (error) {
               console.error('打开下载链接失败:', error);
               ElMessage.error('打开下载链接失败: ' + error.message);
+            }
+          },
+
+          // 协议内容滚动事件处理
+          onAgreementScroll(event) {
+            const element = event.target;
+            // 检查是否滚动到底部（允许5像素的误差）
+            const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 5;
+            if (isAtBottom && !this.agreementScrolledToBottom) {
+              this.agreementScrolledToBottom = true;
+              console.log('用户已滚动到协议底部');
+            }
+          },
+
+          // 检查并显示用户协议
+          async checkAndShowAgreement() {
+            try {
+              console.log('正在检查用户协议同意状态...');
+              // 重置滚动状态
+              this.agreementScrolledToBottom = false;
+              this.agreementChecked = false;
+              const result = await ipcRenderer.invoke('check-agreement-status');
+              
+              if (result.agreed) {
+                console.log('用户已同意协议，时间:', result.agreedAt);
+                this.agreementAgreed = true;
+                return true; // 已同意，继续初始化
+              } else {
+                console.log('用户尚未同意协议，显示协议弹窗');
+                this.showAgreementDialog = true;
+                // 隐藏加载遮罩，显示协议弹窗
+                this.hideLoadingOverlay();
+                return false; // 未同意，暂停初始化
+              }
+            } catch (error) {
+              console.error('检查协议状态失败:', error);
+              // 出错时也显示协议弹窗
+              this.showAgreementDialog = true;
+              this.hideLoadingOverlay();
+              return false;
+            }
+          },
+
+          // 用户同意协议
+          async acceptAgreement() {
+            if (!this.agreementChecked) {
+              ElMessage.warning('请先勾选"已阅读"复选框');
+              return;
+            }
+
+            try {
+              console.log('用户同意协议，正在保存...');
+              const saved = await ipcRenderer.invoke('save-agreement-status', true);
+              
+              if (saved) {
+                this.agreementAgreed = true;
+                this.showAgreementDialog = false;
+                ElMessage.success('感谢您的信任！');
+                
+                // 继续初始化流程
+                await this.continueInitAfterAgreement();
+              } else {
+                ElMessage.error('保存协议状态失败，请重试');
+              }
+            } catch (error) {
+              console.error('保存协议状态失败:', error);
+              ElMessage.error('保存协议状态失败: ' + error.message);
+            }
+          },
+
+          // 用户拒绝协议
+          rejectAgreement() {
+            console.log('用户拒绝协议，退出程序');
+            ElMessage.warning('您已拒绝协议，程序即将退出');
+            
+            // 延迟退出，让用户看到提示
+            setTimeout(() => {
+              ipcRenderer.send('close-window');
+            }, 1500);
+          },
+
+          // 协议同意后继续初始化
+          async continueInitAfterAgreement() {
+            try {
+              // 获取并显示启动弹窗
+              this.updateLoadingStatus('正在加载弹窗信息...', '获取最新通知...');
+              await this.loadAndShowPopup();
+
+              // 获取程序权限信息
+              this.updateLoadingStatus('正在检查权限...', '验证程序权限状态...');
+              await this.loadPermissionInfo();
+
+              // 检查版本更新
+              this.updateLoadingStatus('正在检查更新...', '获取最新版本信息...');
+              await this.checkVersionUpdate();
+
+              // 所有初始化完成
+              this.updateLoadingStatus('初始化完成！', '正在进入应用...');
+              
+              console.log('初始化流程完成');
+            } catch (error) {
+              console.error('继续初始化失败:', error);
             }
           }
         },

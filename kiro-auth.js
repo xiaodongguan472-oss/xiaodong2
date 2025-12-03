@@ -173,8 +173,9 @@ function sha1Hash(str) {
  *   "region": "us-east-1"
  * }
  */
-function writeKiroAuthToken(tokenData, clientId) {
+function writeKiroAuthToken(tokenData, clientId, clientSecret) {
     const filePath = getKiroAuthTokenPath();
+    const cacheDir = path.dirname(filePath);
     
     console.log('\n========== 步骤2: 写入认证文件 ==========');
     console.log(`文件路径: ${filePath}`);
@@ -197,7 +198,7 @@ function writeKiroAuthToken(tokenData, clientId) {
             region: 'us-east-1'
         };
         
-        // 写入文件
+        // 写入 kiro-auth-token.json 文件
         fs.writeFileSync(filePath, JSON.stringify(authData, null, 2), 'utf8');
         
         console.log('✅ 认证文件写入成功!');
@@ -208,6 +209,47 @@ function writeKiroAuthToken(tokenData, clientId) {
         console.log(`   authMethod: ${authData.authMethod}`);
         console.log(`   provider: ${authData.provider}`);
         console.log(`   region: ${authData.region}`);
+        
+        // ========== 步骤3: 写入 clientIdHash.json 文件 ==========
+        console.log('\n========== 步骤3: 写入客户端凭证文件 ==========');
+        
+        // 清除cache目录中旧的 clientIdHash.json 文件（40位十六进制字符的json文件）
+        try {
+            const files = fs.readdirSync(cacheDir);
+            const hashFilePattern = /^[a-f0-9]{40}\.json$/i; // 匹配40位十六进制字符的json文件
+            
+            for (const file of files) {
+                if (hashFilePattern.test(file) && file !== `${clientIdHash}.json`) {
+                    const oldFilePath = path.join(cacheDir, file);
+                    fs.unlinkSync(oldFilePath);
+                    console.log(`🗑️ 已删除旧的凭证文件: ${file}`);
+                }
+            }
+        } catch (cleanError) {
+            console.warn(`⚠️ 清理旧文件时出错: ${cleanError.message}`);
+        }
+        
+        // 计算90天后的过期时间
+        const expiresAtDate = new Date(tokenData.expiresAt);
+        const expiresAt90Days = new Date(expiresAtDate.getTime() + 90 * 24 * 60 * 60 * 1000);
+        const expiresAt90DaysStr = expiresAt90Days.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+        
+        // 构建客户端凭证数据
+        const clientCredentials = {
+            clientId: clientId,
+            clientSecret: clientSecret,
+            expiresAt: expiresAt90DaysStr
+        };
+        
+        // 写入 clientIdHash.json 文件
+        const clientHashFilePath = path.join(cacheDir, `${clientIdHash}.json`);
+        fs.writeFileSync(clientHashFilePath, JSON.stringify(clientCredentials, null, 2), 'utf8');
+        
+        console.log(`✅ 客户端凭证文件写入成功!`);
+        console.log(`   文件名: ${clientIdHash}.json`);
+        console.log(`   clientId: ${clientId.substring(0, 20)}...`);
+        console.log(`   clientSecret: ${clientSecret.substring(0, 50)}...`);
+        console.log(`   expiresAt: ${expiresAt90DaysStr} (原过期时间 + 90天)`);
         
         return true;
     } catch (error) {
@@ -258,8 +300,8 @@ async function switchAccount(email, refreshTokenValue, clientId, clientSecret) {
             throw new Error(tokenResult.message || 'Token 刷新失败');
         }
 
-        // 3. 写入 kiro-auth-token.json（传入 clientId 用于计算哈希）
-        writeKiroAuthToken(tokenResult, clientId);
+        // 3. 写入 kiro-auth-token.json 和 clientIdHash.json（传入 clientId 和 clientSecret）
+        writeKiroAuthToken(tokenResult, clientId, clientSecret);
 
         console.log(`\n========================================`);
         console.log(`✓ Kiro 账号切换成功！`);

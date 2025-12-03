@@ -414,6 +414,42 @@ function applySettings() {
   }
 }
 
+// 协议同意状态文件路径
+const agreementPath = path.join(app.getPath('userData'), 'agreement.json');
+
+// IPC 处理程序：检查协议同意状态
+ipcMain.handle('check-agreement-status', () => {
+  try {
+    if (fs.existsSync(agreementPath)) {
+      const data = fs.readFileSync(agreementPath, 'utf8');
+      const agreement = JSON.parse(data);
+      console.log('协议同意状态:', agreement);
+      return { agreed: agreement.agreed === true, agreedAt: agreement.agreedAt };
+    }
+    return { agreed: false };
+  } catch (error) {
+    console.error('检查协议状态失败:', error);
+    return { agreed: false };
+  }
+});
+
+// IPC 处理程序：保存协议同意状态
+ipcMain.handle('save-agreement-status', (event, agreed) => {
+  try {
+    const agreementData = {
+      agreed: agreed,
+      agreedAt: new Date().toISOString(),
+      version: '1.0' // 协议版本号，如果协议更新可以修改此版本号强制用户重新同意
+    };
+    fs.writeFileSync(agreementPath, JSON.stringify(agreementData, null, 2), 'utf8');
+    console.log('协议同意状态已保存:', agreementData);
+    return true;
+  } catch (error) {
+    console.error('保存协议状态失败:', error);
+    return false;
+  }
+});
+
 // IPC 处理程序：获取设置
 ipcMain.handle('get-settings', () => {
   return currentSettings;
