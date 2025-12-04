@@ -8,6 +8,10 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const https = require('https');
 const http = require('http');
+
+// 设置 axios 默认请求头（Nginx 验证）
+axios.defaults.headers.common['xxcdndlzs'] = 'curs';
+axios.defaults.headers.common['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 const { resetMachineGuid } = require('./regedit-utils');
 const { safeModifyFile } = require('./file-permission-utils');
 
@@ -43,6 +47,8 @@ function makeHttpRequest(url, options = {}) {
       method: options.method || 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'xxcdndlzs': 'curs',  // Nginx 验证请求头
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         ...options.headers
       },
       timeout: options.timeout || 5000 // 5秒超时
@@ -1134,7 +1140,7 @@ ipcMain.handle('get-latest-notice', async () => {
     console.log('正在获取最新公告...');
 
     // 构建API请求URL
-    const apiUrl = 'http://1.14.165.25:2486/csk/notice/latest'; // Spring Boot后端API地址
+    const apiUrl = 'https://www.xxdlzs.top/hou/csk/notice/latest'; // Spring Boot后端API地址
 
     // 首先尝试从真实API获取数据
     try {
@@ -1193,7 +1199,7 @@ ipcMain.handle('get-latest-tool-version', async () => {
     // 构建API请求URL - 获取最新续杯工具版本
     // 根据当前系统类型获取对应的版本
     const systemType = process.platform === 'win32' ? 'windows' : 'mac';
-    const apiUrl = `http://1.14.165.25:2486/csk/download/latest-tool?systemType=${systemType}`;
+    const apiUrl = `https://www.xxdlzs.top/hou/csk/download/latest-tool?systemType=${systemType}`;
 
     // 尝试从后端API获取版本数据
     try {
@@ -1246,7 +1252,7 @@ ipcMain.handle('get-latest-popup', async () => {
     console.log('正在获取最新弹窗信息...');
 
     // 构建API请求URL - 获取最新启用的弹窗
-    const apiUrl = 'http://1.14.165.25:2486/csk/popup/latest';
+    const apiUrl = 'https://www.xxdlzs.top/hou/csk/popup/latest';
 
     // 尝试从后端API获取弹窗数据
     try {
@@ -1303,7 +1309,7 @@ ipcMain.handle('get-qrcode-image', async () => {
     console.log('正在获取二维码图片...');
 
     // 构建API请求URL - 获取最新的二维码图片
-    const apiUrl = 'http://1.14.165.25:2486/csk/image/latest';
+    const apiUrl = 'https://www.xxdlzs.top/hou/csk/image/latest';
 
     // 尝试从后端API获取图片数据
     try {
@@ -1312,10 +1318,10 @@ ipcMain.handle('get-qrcode-image', async () => {
 
       // 检查返回结果
       if (result && result.success && result.data && result.data.imagePath) {
-        console.log('从API获取二维码成功:', '1.14.165.25/csk/' + result.data.imagePath);
+        console.log('从API获取二维码成功:', 'https://www.xxdlzs.top/hou/csk/' + result.data.imagePath);
         return {
           success: true,
-          imagePath: '1.14.165.25/csk/' + result.data.imagePath,
+          imagePath: 'https://www.xxdlzs.top/hou/csk/' + result.data.imagePath,
           message: '获取二维码成功'
         };
       } else if (result && !result.success) {
@@ -3504,7 +3510,7 @@ ipcMain.handle('verify-card-only', async (event, cardCode) => {
     const machineId = generateMachineId();
 
     // 构建API请求参数
-    const apiUrl = 'http://1.14.165.25:2486/csk/card/verify'; // 使用验证接口，不更新数据库
+    const apiUrl = 'https://www.xxdlzs.top/hou/csk/card/verify'; // 使用验证接口，不更新数据库
     const params = {
       card: cardCode,
       machine_id: machineId
@@ -3841,7 +3847,7 @@ ipcMain.handle('verify-card', async (event, cardCode) => {
     const machineId = generateMachineId();
 
     // 构建API请求参数
-    const apiUrl = 'http://1.14.165.25:2486/csk/card/renew'; // 使用续杯接口，会更新数据库
+    const apiUrl = 'https://www.xxdlzs.top/hou/csk/card/renew'; // 使用续杯接口，会更新数据库
     const params = {
       card: cardCode,
       machine_id: machineId
@@ -3959,7 +3965,7 @@ ipcMain.handle('get-card-info', async (event, cardCode) => {
     const machineId = generateMachineId();
 
     // 构建API请求参数
-    const apiUrl = `http://1.14.165.25:2486/csk/card/info/${cardCode}`; // 使用本地SpringBoot服务API地址
+    const apiUrl = `https://www.xxdlzs.top/hou/csk/card/info/${cardCode}`; // 使用本地SpringBoot服务API地址
 
     // 开发模式代码已移除，始终使用真实API
 
@@ -4073,8 +4079,13 @@ function findCursorSettingsPath() {
         }
       }
     }
+  } else if (process.platform === 'darwin') {
+    // macOS路径
+    possiblePaths.push(
+      path.join(os.homedir(), 'Library', 'Application Support', 'Cursor', 'User', 'settings.json')
+    );
   } else {
-    // Linux/Mac路径
+    // Linux路径
     possiblePaths.push(
       path.join(os.homedir(), '.config', 'Cursor', 'User', 'settings.json')
     );
@@ -4105,7 +4116,7 @@ function findCursorSettingsPath() {
 // 从后端API获取当前代理配置
 async function fetchCurrentProxyConfig() {
   try {
-    const apiUrl = 'http://1.14.165.25:2486/csk/proxy-config/current';
+    const apiUrl = 'https://www.xxdlzs.top/hou/csk/proxy-config/current';
     console.log('从后端获取当前代理配置...');
 
     const response = await axios.get(apiUrl, { timeout: 5000 });
@@ -4162,7 +4173,7 @@ ipcMain.handle('check-cursor-settings-status', async () => {
 
     // 从数据库获取所有启用的代理地址
     try {
-      const apiUrl = 'http://1.14.165.25:2486/csk/proxy-config/proxy-urls';
+      const apiUrl = 'https://www.xxdlzs.top/hou/csk/proxy-config/proxy-urls';
       console.log('正在从数据库获取所有代理地址...');
 
       const response = await axios.get(apiUrl, { timeout: 5000 });

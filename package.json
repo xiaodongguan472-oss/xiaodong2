@@ -4,10 +4,10 @@
   "description": "Cursor续杯客户端",
   "main": "main.js",
   "scripts": {
-    "start": "chcp 65001 && electron .",
-    "start:utf8": "set NODE_OPTIONS=--max-old-space-size=4096 && chcp 65001 && electron .",
-    "dev": "chcp 65001 && electron . --dev",
-    "dev:utf8": "set NODE_OPTIONS=--max-old-space-size=4096 && chcp 65001 && electron . --dev",
+    "start": "electron .",
+    "start:utf8": "NODE_OPTIONS=--max-old-space-size=4096 electron .",
+    "dev": "electron . --dev",
+    "dev:utf8": "NODE_OPTIONS=--max-old-space-size=4096 electron . --dev",
     "prebuild": "node scripts/obfuscate.js",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "axios": "^0.27.2",
-    "better-sqlite3": "^8.7.0",
+    "better-sqlite3": "^9.6.0",
     "bytenode": "^1.4.0",
     "element-plus": "^2.3.8",
     "node-gyp-build": "^4.6.1",

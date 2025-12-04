@@ -3974,30 +3974,30 @@
               return imagePath;
             }
 
-            // 如果以 / 开头，拼接基础URL（使用HTTPS和域名）
+            // 如果以 / 开头，拼接基础URL（使用HTTPS和域名，加上/hou代理路径）
             if (imagePath.startsWith('/')) {
-              const fullUrl = 'https://www.xxdlzs.top' + imagePath;
+              const fullUrl = 'https://www.xxdlzs.top/hou' + imagePath;
               console.log('🔗 拼接/开头的路径（使用域名）:', fullUrl);
               return fullUrl;
             }
 
             // 如果路径不包含协议，判断是否需要添加域名
-            // 处理类似 "www.xxdlzs.top/csk/files/..." 的情况
+            // 处理类似 "www.xxdlzs.top/hou/csk/files/..." 的情况
             if (imagePath.includes('www.xxdlzs.top')) {
               const fullUrl = 'https://' + imagePath;
               console.log('🔗 添加https://协议（域名）:', fullUrl);
               return fullUrl;
             }
 
-            // 处理类似 "1.14.165.25/csk/files/..." 的情况
-            if (imagePath.includes('1.14.165.25') || imagePath.match(/^\d+\.\d+\.\d+\.\d+/)) {
+            // 处理 IP 地址的情况
+            if (imagePath.match(/^\d+\.\d+\.\d+\.\d+/)) {
               const fullUrl = 'http://' + imagePath;
               console.log('🔗 添加http://协议（IP）:', fullUrl);
               return fullUrl;
             }
 
             // 默认情况：使用域名拼接
-            const fullUrl = 'https://www.xxdlzs.top' + (imagePath.startsWith('/') ? '' : '/') + imagePath;
+            const fullUrl = 'https://www.xxdlzs.top/hou' + (imagePath.startsWith('/') ? '' : '/') + imagePath;
             console.log('🔗 默认拼接（域名）:', fullUrl);
             return fullUrl;
           },
