@@ -2285,7 +2285,7 @@ function checkCursorRunning() {
           return;
         }
         
-        // 备用：使用tasklist
+        // Windows备用方法：使用tasklist
         exec('tasklist /FI "IMAGENAME eq Cursor.exe"', { encoding: 'utf8' }, (error2, stdout2) => {
           if (!error2 && stdout2) {
             const lines = stdout2.split('\n').filter(line => line.includes('Cursor.exe'));
@@ -2326,7 +2326,7 @@ ipcMain.handle('force-close-cursor', async () => {
     // 第二步：执行关闭命令
     return new Promise((resolve) => {
       const killCommand = process.platform === 'win32' ? 'taskkill /F /IM Cursor.exe' :
-                         process.platform === 'darwin' ? 'pkill -9 Cursor' : 'pkill -9 cursor';
+                         process.platform === 'darwin' ? 'pkill -9 -x Cursor' : 'pkill -9 cursor';
       
       if (logger) logger.info('执行关闭命令', { command: killCommand });
       
@@ -2426,7 +2426,7 @@ ipcMain.handle('restart-cursor-complete', async () => {
             resolve({ success: !error });
           });
         } else if (process.platform === 'darwin') {
-          exec('pkill -9 Cursor', (error) => {
+          exec('pkill -9 -x Cursor', (error) => {
             resolve({ success: !error });
           });
         } else {
@@ -2848,7 +2848,7 @@ ipcMain.handle('restart-cursor', async (event, cursorPath) => {
 
       // 先关闭现有的Cursor进程
       const { exec } = require('child_process');
-      exec('pkill -9 Cursor', (error) => {
+      exec('pkill -9 -x Cursor', (error) => {
         if (error) {
           console.log('没有运行中的Cursor进程或无法关闭进程');
         } else {
@@ -2874,7 +2874,7 @@ ipcMain.handle('restart-cursor', async (event, cursorPath) => {
 
       // 先关闭现有的Cursor进程
       const { exec } = require('child_process');
-      exec('pkill -9 Cursor', (error) => {
+      exec('pkill -9 -x cursor', (error) => {
         if (error) {
           console.log('没有运行中的Cursor进程或无法关闭进程');
         } else {
