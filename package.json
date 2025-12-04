@@ -98,6 +98,8 @@
     },
     "files": [
       "main.js",
+      "logger.js",
+      "main-logger-ipc.js",
       "regedit-utils.js",
       "file-permission-utils.js",
       "index.html",
