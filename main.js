@@ -14,6 +14,18 @@ axios.defaults.headers.common['xxcdndlzs'] = 'curs';
 axios.defaults.headers.common['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 const { resetMachineGuid } = require('./regedit-utils');
 const { safeModifyFile } = require('./file-permission-utils');
+const { getLogger } = require('./logger');
+
+// 初始化日志记录器
+const { setupLoggerIPC } = require('./main-logger-ipc');
+let logger = null;
+app.whenReady().then(() => {
+  logger = getLogger();
+  logger.info('========== 应用程序启动 ==========');
+  logger.logSystemInfo();
+  logger.cleanOldLogs(); // 清理旧日志
+  setupLoggerIPC(); // 设置日志IPC通信
+});
 
 // 运行时保护 (已禁用，避免模块缺失错误)
 // const RuntimeProtection = require('./scripts/runtime-protection');
@@ -2299,6 +2311,7 @@ function checkCursorRunning() {
 ipcMain.handle('force-close-cursor', async () => {
   try {
     console.log('正在强制关闭Cursor...');
+    if (logger) logger.logFunction('force-close-cursor', {});
     const { exec } = require('child_process');
     
     // 第一步：检查Cursor是否正在运行
@@ -2314,6 +2327,8 @@ ipcMain.handle('force-close-cursor', async () => {
     return new Promise((resolve) => {
       const killCommand = process.platform === 'win32' ? 'taskkill /F /IM Cursor.exe' :
                          process.platform === 'darwin' ? 'pkill -9 Cursor' : 'pkill -9 cursor';
+      
+      if (logger) logger.info('执行关闭命令', { command: killCommand });
       
       exec(killCommand, async (error, stdout, stderr) => {
         if (error) {
@@ -2980,6 +2995,16 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
     console.log('========================================');
     console.log('=== Python风格账号切换开始 ===');
     console.log('========================================');
+    
+    if (logger) {
+      logger.info('========== Python风格账号切换开始 ==========');
+      logger.logFunction('python-style-account-switch', {
+        dbPath: dbPath,
+        email: email,
+        hasAccessToken: !!access_token,
+        hasRefreshToken: !!refresh_token
+      });
+    }
     console.log(`数据库路径: ${dbPath}`);
     console.log(`用户邮箱: ${email}`);
     console.log(`access_token长度: ${access_token ? access_token.length : 0}`);
@@ -3085,23 +3110,37 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
       // 1.3 重置Windows注册表中的MachineGuid（仅在Windows平台）
       if (process.platform === 'win32') {
         console.log('正在重置Windows注册表MachineGuid...');
+        if (logger) logger.logStep('1.3', '重置Windows注册表', 'START');
+        
         try {
+          if (logger) logger.debug('调用resetMachineGuid函数...');
           const registryResult = await resetMachineGuid();
           if (registryResult.success) {
             console.log(`✓ 注册表MachineGuid重置成功: ${registryResult.oldValue} -> ${registryResult.newValue}`);
+            if (logger) logger.info('注册表重置成功', registryResult);
           } else {
             console.warn(`⚠ 注册表MachineGuid重置失败: ${registryResult.error}`);
+            if (logger) logger.warn('注册表重置失败', registryResult);
           }
         } catch (registryError) {
           console.warn(`⚠ 注册表重置过程中出错: ${registryError.message}`);
+          if (logger) logger.error('注册表操作异常', {
+            error: registryError.message,
+            stack: registryError.stack
+          });
         }
       } else {
         console.log('非Windows平台，跳过注册表重置');
       }
 
       console.log('✓ 机器ID重置完成');
+      if (logger) logger.logStep('1', '机器ID重置', 'COMPLETED');
     } catch (resetError) {
       console.warn(`⚠ 重置机器ID过程中出错: ${resetError.message}`);
+      if (logger) logger.error('机器ID重置失败', {
+        error: resetError.message,
+        stack: resetError.stack
+      });
       // 不中断流程，继续执行
     }
 
@@ -3112,6 +3151,7 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
       console.log('正在连接数据库...');
       const db = new Database(dbPath);
       console.log('✓ 已成功连接到数据库');
+      if (logger) logger.info('数据库连接成功', { dbPath: dbPath });
 
       // 检查表是否存在
       const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
@@ -3170,15 +3210,22 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
       console.log('=== Python风格账号切换完成 ===');
       console.log('========================================');
 
+      if (logger) logger.info('账号切换完成', { updatedKeys });
+      
       return {
         success: true,
         message: 'Python风格账号切换成功',
         updatedKeys,
         activationSuccess: true
       };
-    } catch (error) {
-      console.error('✗ 数据库操作失败:', error);
-      return { success: false, error: `数据库操作失败: ${error.message}` };
+    } catch (dbError) {
+      console.error('数据库操作失败:', dbError);
+      if (logger) logger.fatal('数据库操作失败', {
+        error: dbError.message,
+        stack: dbError.stack,
+        dbPath: dbPath
+      });
+      return { success: false, error: dbError.message };
     }
   } catch (error) {
     console.error('✗ Python风格账号切换失败:', error);

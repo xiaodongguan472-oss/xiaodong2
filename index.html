@@ -1905,6 +1905,7 @@
           </svg>
           <span class="permission-text">{{ permissionInfo.description }}</span>
         </div>
+        <div class="header-settings-icon" @click="openLogFolder" title="查看日志" style="margin-right: 10px;">📋</div>
         <div class="header-settings-icon" @click="openCardDialog" title="设置授权码">⚙️</div>
       </div>
     </div>
@@ -2493,6 +2494,16 @@
       const path = require('path');
       const fs = require('fs');
       const os = require('os');
+      
+      // 创建日志记录器
+      const logger = {
+        info: (message, data) => ipcRenderer.invoke('log-info', message, data),
+        warn: (message, data) => ipcRenderer.invoke('log-warn', message, data),
+        error: (message, data) => ipcRenderer.invoke('log-error', message, data),
+        debug: (message, data) => ipcRenderer.invoke('log-debug', message, data),
+        logFunction: (name, params) => ipcRenderer.invoke('log-function', name, params),
+        logStep: (num, name, status) => ipcRenderer.invoke('log-step', num, name, status)
+      };
 
       createApp({
         data() {
@@ -3030,11 +3041,15 @@
           },
 
           async pythonStyleRenewal() {
+            // 记录函数调用
+            logger.logFunction('pythonStyleRenewal', { cardCode: this.cardCode });
+            
             // 检查是否在冷却期间
             if (this.refreshCursorCooldown) {
               const minutes = Math.floor(this.refreshCursorCountdown / 60);
               const seconds = this.refreshCursorCountdown % 60;
               ElMessage.warning(`请等待 ${minutes}:${String(seconds).padStart(2, '0')} 后再试`);
+              logger.warn('刷新Cursor冷却中', { remainingTime: this.refreshCursorCountdown });
               return;
             }
 
@@ -3390,6 +3405,13 @@
             } catch (error) {
               console.error('续杯过程出错:', error);
               console.error(`❌ 错误: ${error.message}`);
+              
+              // 记录错误到日志
+              logger.error('续杯过程出错', {
+                error: error.message,
+                stack: error.stack,
+                cardCode: this.cardCode
+              });
 
               // 更新当前步骤状态为错误
               const currentStepIndex = this.stepStatus.findIndex(status => status === 'processing');
@@ -3497,6 +3519,22 @@
 
           resetCursor() {
             ElMessage.warning('初始化Cursor功能开发中...');
+          },
+
+          // 打开日志文件夹
+          async openLogFolder() {
+            try {
+              logger.info('用户请求打开日志文件夹');
+              const result = await ipcRenderer.invoke('open-log-folder');
+              if (result.success) {
+                ElMessage.success(`已打开日志文件夹: ${result.path}`);
+              } else {
+                ElMessage.error('打开日志文件夹失败');
+              }
+            } catch (error) {
+              console.error('打开日志文件夹出错:', error);
+              ElMessage.error(`打开日志文件夹失败: ${error.message}`);
+            }
           },
 
           // 打开设置对话框
