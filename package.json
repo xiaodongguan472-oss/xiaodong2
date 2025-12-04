@@ -97,8 +97,6 @@
     },
     "files": [
       "main.js",
-      "logger.js",
-      "main-logger-ipc.js",
       "file-permission-utils.js",
       "index.html",
       "vue.global.js",

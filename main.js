@@ -14,17 +14,9 @@ axios.defaults.headers.common['xxcdndlzs'] = 'curs';
 axios.defaults.headers.common['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 // const { resetMachineGuid } = require('./regedit-utils');  // 禁用注册表操作，避免macOS崩溃
 const { safeModifyFile } = require('./file-permission-utils');
-const { getLogger } = require('./logger');
 
-// 初始化日志记录器
-const { setupLoggerIPC } = require('./main-logger-ipc');
-let logger = null;
 app.whenReady().then(() => {
-  logger = getLogger();
-  logger.info('========== 应用程序启动 ==========');
-  logger.logSystemInfo();
-  logger.cleanOldLogs(); // 清理旧日志
-  setupLoggerIPC(); // 设置日志IPC通信
+  createWindow();
 });
 
 // 运行时保护 (已禁用，避免模块缺失错误)
@@ -423,6 +415,11 @@ function applySettings() {
 // IPC 处理程序：获取设置
 ipcMain.handle('get-settings', () => {
   return currentSettings;
+});
+
+// IPC 处理程序：退出应用
+ipcMain.handle('quit-app', () => {
+  app.quit();
 });
 
 // IPC 处理程序：保存设置
@@ -1330,10 +1327,10 @@ ipcMain.handle('get-qrcode-image', async () => {
 
       // 检查返回结果
       if (result && result.success && result.data && result.data.imagePath) {
-        console.log('从API获取二维码成功:', 'https://www.xxdlzs.top/hou/csk/' + result.data.imagePath);
+        console.log('从API获取二维码成功:', 'https://www.xxdlzs.top/csk/' + result.data.imagePath);
         return {
           success: true,
-          imagePath: 'https://www.xxdlzs.top/hou/csk/' + result.data.imagePath,
+          imagePath: 'https://www.xxdlzs.top/csk/' + result.data.imagePath,
           message: '获取二维码成功'
         };
       } else if (result && !result.success) {
@@ -2312,7 +2309,6 @@ function checkCursorRunning() {
 ipcMain.handle('force-close-cursor', async () => {
   try {
     console.log('正在强制关闭Cursor...');
-    if (logger) logger.logFunction('force-close-cursor', {});
     const { exec } = require('child_process');
     
     // 第一步：检查Cursor是否正在运行
@@ -2336,8 +2332,6 @@ ipcMain.handle('force-close-cursor', async () => {
       } else {
         killCommand = 'pkill -9 cursor';
       }
-      
-      if (logger) logger.info('执行关闭命令', { command: killCommand });
       
       exec(killCommand, async (error, stdout, stderr) => {
         if (error) {
@@ -3004,16 +2998,6 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
     console.log('========================================');
     console.log('=== Python风格账号切换开始 ===');
     console.log('========================================');
-    
-    if (logger) {
-      logger.info('========== Python风格账号切换开始 ==========');
-      logger.logFunction('python-style-account-switch', {
-        dbPath: dbPath,
-        email: email,
-        hasAccessToken: !!access_token,
-        hasRefreshToken: !!refresh_token
-      });
-    }
     console.log(`数据库路径: ${dbPath}`);
     console.log(`用户邮箱: ${email}`);
     console.log(`access_token长度: ${access_token ? access_token.length : 0}`);
@@ -3118,16 +3102,10 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
 
       // 1.3 注册表操作已禁用（避免跨平台崩溃问题）
       console.log('注册表操作已禁用，跳过MachineGuid重置');
-      if (logger) logger.info('注册表操作已禁用（避免崩溃）');
 
       console.log('✓ 机器ID重置完成');
-      if (logger) logger.logStep('1', '机器ID重置', 'COMPLETED');
     } catch (resetError) {
       console.warn(`⚠ 重置机器ID过程中出错: ${resetError.message}`);
-      if (logger) logger.error('机器ID重置失败', {
-        error: resetError.message,
-        stack: resetError.stack
-      });
       // 不中断流程，继续执行
     }
 
@@ -3138,7 +3116,6 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
       console.log('正在连接数据库...');
       const db = new Database(dbPath);
       console.log('✓ 已成功连接到数据库');
-      if (logger) logger.info('数据库连接成功', { dbPath: dbPath });
 
       // 检查表是否存在
       const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
@@ -3196,8 +3173,6 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
       console.log('========================================');
       console.log('=== Python风格账号切换完成 ===');
       console.log('========================================');
-
-      if (logger) logger.info('账号切换完成', { updatedKeys });
       
       return {
         success: true,
@@ -3207,11 +3182,6 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
       };
     } catch (dbError) {
       console.error('数据库操作失败:', dbError);
-      if (logger) logger.fatal('数据库操作失败', {
-        error: dbError.message,
-        stack: dbError.stack,
-        dbPath: dbPath
-      });
       return { success: false, error: dbError.message };
     }
   } catch (error) {
