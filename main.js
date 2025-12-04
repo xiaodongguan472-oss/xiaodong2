@@ -12,7 +12,7 @@ const http = require('http');
 // 设置 axios 默认请求头（Nginx 验证）
 axios.defaults.headers.common['xxcdndlzs'] = 'curs';
 axios.defaults.headers.common['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-const { resetMachineGuid } = require('./regedit-utils');
+// const { resetMachineGuid } = require('./regedit-utils');  // 禁用注册表操作，避免macOS崩溃
 const { safeModifyFile } = require('./file-permission-utils');
 const { getLogger } = require('./logger');
 
@@ -3107,31 +3107,9 @@ ipcMain.handle('python-style-account-switch', async (event, dbPath, email, acces
       await resetMachineIds(cursorDir);
       console.log('✓ 机器ID文件重置成功');
 
-      // 1.3 重置Windows注册表中的MachineGuid（仅在Windows平台）
-      if (process.platform === 'win32') {
-        console.log('正在重置Windows注册表MachineGuid...');
-        if (logger) logger.logStep('1.3', '重置Windows注册表', 'START');
-        
-        try {
-          if (logger) logger.debug('调用resetMachineGuid函数...');
-          const registryResult = await resetMachineGuid();
-          if (registryResult.success) {
-            console.log(`✓ 注册表MachineGuid重置成功: ${registryResult.oldValue} -> ${registryResult.newValue}`);
-            if (logger) logger.info('注册表重置成功', registryResult);
-          } else {
-            console.warn(`⚠ 注册表MachineGuid重置失败: ${registryResult.error}`);
-            if (logger) logger.warn('注册表重置失败', registryResult);
-          }
-        } catch (registryError) {
-          console.warn(`⚠ 注册表重置过程中出错: ${registryError.message}`);
-          if (logger) logger.error('注册表操作异常', {
-            error: registryError.message,
-            stack: registryError.stack
-          });
-        }
-      } else {
-        console.log('非Windows平台，跳过注册表重置');
-      }
+      // 1.3 注册表操作已禁用（避免跨平台崩溃问题）
+      console.log('注册表操作已禁用，跳过MachineGuid重置');
+      if (logger) logger.info('注册表操作已禁用（避免崩溃）');
 
       console.log('✓ 机器ID重置完成');
       if (logger) logger.logStep('1', '机器ID重置', 'COMPLETED');
