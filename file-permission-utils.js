@@ -102,7 +102,11 @@ async function safeModifyFile(filePath, modifyFunction) {
     // 执行文件修改操作
     await modifyFunction();
     
-    // 不再恢复只读属性，保持文件可写状态
+    // 如果原来是只读，恢复只读属性
+    if (wasReadOnly) {
+      await restoreReadOnlyAttribute(filePath);
+    }
+    
     return true;
   } catch (error) {
     console.error('安全修改文件失败:', error.message);

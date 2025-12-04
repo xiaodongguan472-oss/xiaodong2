@@ -1,17 +1,3 @@
-// 在最开始设置Node.js输出编码为UTF-8
-if (process.platform === 'win32') {
-  // 设置环境变量
-  process.env.LANG = 'zh_CN.UTF-8';
-  process.env.LC_ALL = 'zh_CN.UTF-8';
-  // 设置标准输出编码
-  if (process.stdout && process.stdout.setDefaultEncoding) {
-    process.stdout.setDefaultEncoding('utf8');
-  }
-  if (process.stderr && process.stderr.setDefaultEncoding) {
-    process.stderr.setDefaultEncoding('utf8');
-  }
-}
-
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -22,23 +8,23 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const https = require('https');
 const http = require('http');
-// Windows 注册表工具（仅 Windows 平台加载）
-let resetMachineGuid = null;
-if (process.platform === 'win32') {
-  try {
-    const regeditUtils = require('./regedit-utils');
-    resetMachineGuid = regeditUtils.resetMachineGuid;
-  } catch (e) {
-    console.warn('regedit-utils 加载失败:', e.message);
-  }
-}
+const { resetMachineGuid } = require('./regedit-utils');
 const { safeModifyFile } = require('./file-permission-utils');
 
 // 运行时保护 (已禁用，避免模块缺失错误)
 // const RuntimeProtection = require('./scripts/runtime-protection');
 // let protection;
 
-// better-sqlite3 已移除，换号逻辑改为修改 kiro-auth-token.json 文件
+let Database;
+
+try {
+  Database = require('better-sqlite3');
+  console.log('better-sqlite3模块加载成功');
+} catch (err) {
+  console.error('better-sqlite3模块加载失败:', err.message);
+  console.warn('部分功能可能无法正常工作，请安装必要的依赖: npm install better-sqlite3');
+  // 不退出应用，继续执行，但在使用Database的地方要检查模块是否存在
+}
 
 // 是否是开发环境
 const isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
@@ -131,7 +117,7 @@ function createWindow() {
   if (process.platform === 'win32') {
     try {
       // 强制设置控制台输出编码
-      process.stdout.write('\x1b]0;Kiro续杯工具\x07'); // 设置窗口标题
+      process.stdout.write('\x1b]0;Cursor续杯工具\x07'); // 设置窗口标题
       console.log('Windows控制台编码优化完成');
     } catch (error) {
       // 忽略编码设置错误
@@ -164,7 +150,7 @@ function createWindow() {
     resizable: false, // 禁止调整大小
     maximizable: false, // 禁用最大化按钮
     autoHideMenuBar: true, // 隐藏菜单栏
-    backgroundColor: '#1e293b', // 设置窗口背景颜色与页面背景一致
+    backgroundColor: '#0560ef', // 设置窗口背景颜色与页面背景一致
     frame: false, // 隐藏默认标题栏
     titleBarStyle: 'customButtonsOnHover', // 自定义标题栏样式
     webPreferences: {
@@ -243,23 +229,25 @@ function setupConsoleEncoding() {
         process.stderr.setDefaultEncoding('utf8');
       }
 
-      // 同步执行chcp命令设置控制台代码页为UTF-8
-      const { execSync } = require('child_process');
-      try {
-        execSync('chcp 65001', { stdio: 'ignore' });
-        originalConsoleLog('控制台编码已设置为UTF-8');
-      } catch (chcpError) {
-        // chcp失败不影响应用运行
-      }
+      // 尝试执行chcp命令设置控制台代码页为UTF-8
+      const { exec } = require('child_process');
+      exec('chcp 65001', (error) => {
+        if (error) {
+          logUTF8('设置控制台编码为UTF-8失败，但这不会影响应用运行');
+        } else {
+          logUTF8('控制台编码已设置为UTF-8');
+        }
+      });
     }
 
     // 设置Node.js的默认编码
-    process.env.LANG = 'zh_CN.UTF-8';
-    process.env.LC_ALL = 'zh_CN.UTF-8';
+    if (isDev) {
+      process.env.LANG = 'zh_CN.UTF-8';
+    }
 
-    originalConsoleLog('控制台编码设置完成');
+    logUTF8('控制台编码设置完成');
   } catch (error) {
-    originalConsoleLog('控制台编码设置失败: ' + error.message);
+    logUTF8('控制台编码设置失败: ' + error.message);
   }
 }
 
@@ -299,7 +287,7 @@ app.whenReady().then(async () => {
   setTimeout(() => {
     console.log('=== 中文编码测试 ===');
     console.log('应用启动成功！');
-    console.log('Kiro续杯工具初始化完成');
+    console.log('Cursor续杯工具初始化完成');
     console.log('如果您能看到这些中文字符，说明编码问题已修复');
     console.log('===================');
   }, 1000);
@@ -332,7 +320,7 @@ app.whenReady().then(async () => {
   // 添加关于菜单(macOS)
   if (process.platform === 'darwin') {
     app.setAboutPanelOptions({
-      applicationName: 'Kiro续杯工具',
+      applicationName: 'Cursor续杯工具',
       applicationVersion: app.getVersion(),
       version: app.getVersion(),
       copyright: '© 2023 All Rights Reserved'
@@ -353,7 +341,7 @@ const defaultSettings = {
   autoActivateOnStartup: false,
   debugMode: false,
   forceModifyMode: false,
-  customKiroPath: '' // 自定义Kiro安装路径
+  customCursorPath: '' // 自定义Cursor安装路径
 };
 
 // 当前设置
@@ -399,10 +387,10 @@ function saveSettings(settings) {
 function applySettings() {
   // 设置环境变量
   if (currentSettings.forceModifyMode) {
-    process.env.FORCE_Kiro_MODIFY = 'true';
+    process.env.FORCE_CURSOR_MODIFY = 'true';
     console.log('已启用强制修改模式');
   } else {
-    process.env.FORCE_Kiro_MODIFY = 'false';
+    process.env.FORCE_CURSOR_MODIFY = 'false';
   }
 
   // 设置调试模式
@@ -413,42 +401,6 @@ function applySettings() {
     process.env.DEBUG_MODE = 'false';
   }
 }
-
-// 协议同意状态文件路径
-const agreementPath = path.join(app.getPath('userData'), 'agreement.json');
-
-// IPC 处理程序：检查协议同意状态
-ipcMain.handle('check-agreement-status', () => {
-  try {
-    if (fs.existsSync(agreementPath)) {
-      const data = fs.readFileSync(agreementPath, 'utf8');
-      const agreement = JSON.parse(data);
-      console.log('协议同意状态:', agreement);
-      return { agreed: agreement.agreed === true, agreedAt: agreement.agreedAt };
-    }
-    return { agreed: false };
-  } catch (error) {
-    console.error('检查协议状态失败:', error);
-    return { agreed: false };
-  }
-});
-
-// IPC 处理程序：保存协议同意状态
-ipcMain.handle('save-agreement-status', (event, agreed) => {
-  try {
-    const agreementData = {
-      agreed: agreed,
-      agreedAt: new Date().toISOString(),
-      version: '1.0' // 协议版本号，如果协议更新可以修改此版本号强制用户重新同意
-    };
-    fs.writeFileSync(agreementPath, JSON.stringify(agreementData, null, 2), 'utf8');
-    console.log('协议同意状态已保存:', agreementData);
-    return true;
-  } catch (error) {
-    console.error('保存协议状态失败:', error);
-    return false;
-  }
-});
 
 // IPC 处理程序：获取设置
 ipcMain.handle('get-settings', () => {
@@ -471,7 +423,7 @@ ipcMain.handle('save-settings', (event, settings) => {
       autoActivateOnStartup: Boolean(settings.autoActivateOnStartup),
       debugMode: Boolean(settings.debugMode),
       forceModifyMode: Boolean(settings.forceModifyMode),
-      customKiroPath: String(settings.customKiroPath || '')
+      customCursorPath: String(settings.customCursorPath || '')
     };
 
     saveSettings(validatedSettings);
@@ -483,25 +435,25 @@ ipcMain.handle('save-settings', (event, settings) => {
   }
 });
 
-// IPC 处理程序：禁用Kiro自动更新
-ipcMain.handle('disable-Kiro-auto-update', async () => {
+// IPC 处理程序：禁用Cursor自动更新
+ipcMain.handle('disable-cursor-auto-update', async () => {
   try {
-    console.log('正在禁用Kiro自动更新...');
+    console.log('正在禁用Cursor自动更新...');
 
     // 构建settings.json路径
     let settingsPath = '';
     if (process.platform === 'win32') {
-      // Windows: %APPDATA%\Kiro\User\settings.json
-      settingsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Kiro', 'User', 'settings.json');
+      // Windows: %APPDATA%\Cursor\User\settings.json
+      settingsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Cursor', 'User', 'settings.json');
     } else if (process.platform === 'darwin') {
-      // macOS: ~/Library/Application Support/Kiro/User/settings.json
-      settingsPath = path.join(os.homedir(), 'Library', 'Application Support', 'Kiro', 'User', 'settings.json');
+      // macOS: ~/Library/Application Support/Cursor/User/settings.json
+      settingsPath = path.join(os.homedir(), 'Library', 'Application Support', 'Cursor', 'User', 'settings.json');
     } else {
-      // Linux: ~/.config/Kiro/User/settings.json
-      settingsPath = path.join(os.homedir(), '.config', 'Kiro', 'User', 'settings.json');
+      // Linux: ~/.config/Cursor/User/settings.json
+      settingsPath = path.join(os.homedir(), '.config', 'Cursor', 'User', 'settings.json');
     }
 
-    console.log(`Kiro设置文件路径: ${settingsPath}`);
+    console.log(`Cursor设置文件路径: ${settingsPath}`);
 
     // 确保目录存在
     const settingsDir = path.dirname(settingsPath);
@@ -510,94 +462,43 @@ ipcMain.handle('disable-Kiro-auto-update', async () => {
       console.log(`已创建设置目录: ${settingsDir}`);
     }
 
-    // 检查文件是否为只读
+    // 读取现有设置
+    let currentSettings = {};
     if (fs.existsSync(settingsPath)) {
       try {
-        const stats = fs.statSync(settingsPath);
-        const isReadOnly = !(stats.mode & 0o200); // 检查写权限位
-
-        if (isReadOnly) {
-          console.log('⚠ 检测到settings.json为只读文件，正在修改权限...');
-
-          // Windows平台使用attrib命令
-          if (process.platform === 'win32') {
-            const { execSync } = require('child_process');
-            try {
-              execSync(`attrib -r "${settingsPath}"`, { encoding: 'utf8' });
-              console.log('✓ 已移除只读属性（使用attrib命令）');
-            } catch (attribError) {
-              console.warn('⚠ attrib命令失败，尝试使用fs.chmod...');
-              // 如果attrib失败，尝试使用fs.chmod
-              fs.chmodSync(settingsPath, 0o644);
-              console.log('✓ 已修改文件权限为可写（使用fs.chmod）');
-            }
-          } else {
-            // macOS/Linux使用chmod
-            fs.chmodSync(settingsPath, 0o644);
-            console.log('✓ 已修改文件权限为可写');
-          }
-        } else {
-          console.log('✓ settings.json文件可写，无需修改权限');
-        }
-      } catch (permError) {
-        console.warn('⚠ 检查/修改文件权限时出错:', permError.message);
-        // 继续执行，尝试使用safeModifyFile
+        const settingsContent = fs.readFileSync(settingsPath, 'utf8');
+        currentSettings = JSON.parse(settingsContent);
+        console.log('已读取现有设置');
+      } catch (parseError) {
+        console.warn('解析现有设置失败，将创建新设置:', parseError.message);
+        currentSettings = {};
       }
     }
 
-    // 使用安全的文件修改方法（自动处理只读属性）
-    const modifySuccess = await safeModifyFile(settingsPath, async () => {
-      // 读取现有设置
-      let currentSettings = {};
-      if (fs.existsSync(settingsPath)) {
-        try {
-          const settingsContent = fs.readFileSync(settingsPath, 'utf8');
-          currentSettings = JSON.parse(settingsContent);
-          console.log('已读取现有设置');
-        } catch (parseError) {
-          console.warn('解析现有设置失败，将创建新设置:', parseError.message);
-          currentSettings = {};
-        }
-      }
+    // 添加禁用自动更新的设置
+    currentSettings['update.enableWindowsBackgroundUpdates'] = false;
+    currentSettings['update.mode'] = 'none';
 
-      // 添加禁用自动更新的设置
-      currentSettings['update.enableWindowsBackgroundUpdates'] = false;
-      currentSettings['update.mode'] = 'none';
-
-      // 创建备份
-      if (fs.existsSync(settingsPath)) {
-        const backupPath = `${settingsPath}.bak`;
-        try {
-          fs.copyFileSync(settingsPath, backupPath);
-          console.log(`已创建设置文件备份: ${backupPath}`);
-        } catch (backupError) {
-          console.warn('创建备份失败，但继续执行:', backupError.message);
-        }
-      }
-
-      // 写入新设置
-      fs.writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2), 'utf8');
-      console.log('已成功禁用Kiro自动更新');
-
-      return currentSettings;
-    });
-
-    if (!modifySuccess) {
-      throw new Error('文件修改失败：可能由于权限问题无法写入settings.json');
+    // 创建备份
+    if (fs.existsSync(settingsPath)) {
+      const backupPath = `${settingsPath}.bak`;
+      fs.copyFileSync(settingsPath, backupPath);
+      console.log(`已创建设置文件备份: ${backupPath}`);
     }
 
-    // 读取最终的设置内容
-    const finalSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    // 写入新设置
+    fs.writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2), 'utf8');
+    console.log('已成功禁用Cursor自动更新');
 
     return {
       success: true,
-      message: '已成功禁用Kiro自动更新',
+      message: '已成功禁用Cursor自动更新',
       settingsPath,
-      settings: finalSettings
+      settings: currentSettings
     };
 
   } catch (error) {
-    console.error('禁用Kiro自动更新失败:', error);
+    console.error('禁用Cursor自动更新失败:', error);
     return { success: false, error: error.message };
   }
 });
@@ -776,23 +677,23 @@ ipcMain.handle('get-machine-id', async () => {
   }
 });
 
-// 获取Kiro用户数据路径
+// 获取Cursor用户数据路径
 ipcMain.handle('get-user-data-path', async () => {
   try {
     let userDataPath = '';
 
     if (process.platform === 'win32') {
-      // Windows: %APPDATA%\Kiro
-      userDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Kiro');
+      // Windows: %APPDATA%\Cursor
+      userDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Cursor');
     } else if (process.platform === 'darwin') {
-      // macOS: ~/Library/Application Support/Kiro
-      userDataPath = path.join(os.homedir(), 'Library', 'Application Support', 'Kiro');
+      // macOS: ~/Library/Application Support/Cursor
+      userDataPath = path.join(os.homedir(), 'Library', 'Application Support', 'Cursor');
     } else {
-      // Linux: ~/.config/Kiro
-      userDataPath = path.join(os.homedir(), '.config', 'Kiro');
+      // Linux: ~/.config/Cursor
+      userDataPath = path.join(os.homedir(), '.config', 'Cursor');
     }
 
-    console.log(`Kiro用户数据路径: ${userDataPath}`);
+    console.log(`Cursor用户数据路径: ${userDataPath}`);
     return userDataPath;
   } catch (error) {
     console.error('获取用户数据路径失败:', error);
@@ -824,9 +725,9 @@ function getAvailableDrives() {
 }
 
 // 搜索所有用户目录中的state.vscdb数据库文件
-ipcMain.handle('find-all-Kiro-databases', async () => {
+ipcMain.handle('find-all-cursor-databases', async () => {
   try {
-    console.log('开始全盘搜索所有可能的Kiro数据库...');
+    console.log('开始全盘搜索所有可能的Cursor数据库...');
     const foundDatabases = [];
 
     if (process.platform === 'win32') {
@@ -835,7 +736,7 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
       console.log(`检测到 ${availableDrives.length} 个可用驱动器:`, availableDrives);
 
       for (const drive of availableDrives) {
-        console.log(`正在搜索驱动器 ${drive} 上的Kiro数据库...`);
+        console.log(`正在搜索驱动器 ${drive} 上的Cursor数据库...`);
 
         // 搜索该驱动器上的Users目录
         const usersDir = path.join(drive, '\\Users');
@@ -855,8 +756,8 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
               }
 
               // 检查标准AppData路径
-              const standardKiroPath = path.join(usersDir, username, 'AppData', 'Roaming', 'Kiro');
-              const standardDbPath = path.join(standardKiroPath, 'User', 'globalStorage', 'state.vscdb');
+              const standardCursorPath = path.join(usersDir, username, 'AppData', 'Roaming', 'Cursor');
+              const standardDbPath = path.join(standardCursorPath, 'User', 'globalStorage', 'state.vscdb');
 
               console.log(`检查用户 ${username} (${drive}) 的标准数据库路径: ${standardDbPath}`);
 
@@ -868,18 +769,18 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
                     path: standardDbPath,
                     size: stats.size,
                     modified: stats.mtime,
-                    userDataPath: standardKiroPath,
+                    userDataPath: standardCursorPath,
                     drive: drive
                   });
-                  console.log(`✓ 找到用户 ${username} (${drive}) 的Kiro数据库: ${standardDbPath} (${stats.size} bytes)`);
+                  console.log(`✓ 找到用户 ${username} (${drive}) 的Cursor数据库: ${standardDbPath} (${stats.size} bytes)`);
                 } catch (statError) {
                   console.warn(`用户 ${username} (${drive}) 的数据库存在但无法访问: ${statError.message}`);
                 }
               }
 
               // 同时检查可能的本地AppData路径
-              const localKiroPath = path.join(usersDir, username, 'AppData', 'Local', 'Kiro');
-              const localDbPath = path.join(localKiroPath, 'User', 'globalStorage', 'state.vscdb');
+              const localCursorPath = path.join(usersDir, username, 'AppData', 'Local', 'Cursor');
+              const localDbPath = path.join(localCursorPath, 'User', 'globalStorage', 'state.vscdb');
 
               if (fs.existsSync(localDbPath)) {
                 try {
@@ -889,10 +790,10 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
                     path: localDbPath,
                     size: stats.size,
                     modified: stats.mtime,
-                    userDataPath: localKiroPath,
+                    userDataPath: localCursorPath,
                     drive: drive
                   });
-                  console.log(`✓ 找到用户 ${username} (${drive}) 的本地Kiro数据库: ${localDbPath} (${stats.size} bytes)`);
+                  console.log(`✓ 找到用户 ${username} (${drive}) 的本地Cursor数据库: ${localDbPath} (${stats.size} bytes)`);
                 } catch (statError) {
                   console.warn(`用户 ${username} (${drive}) 的本地数据库存在但无法访问: ${statError.message}`);
                 }
@@ -905,10 +806,10 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
 
         // 同时搜索一些常见的直接路径
         const commonPaths = [
-          path.join(drive, '\\Kiro'),
-          path.join(drive, '\\Program Files', 'Kiro'),
-          path.join(drive, '\\Program Files (x86)', 'Kiro'),
-          path.join(drive, '\\ProgramData', 'Kiro')
+          path.join(drive, '\\Cursor'),
+          path.join(drive, '\\Program Files', 'Cursor'),
+          path.join(drive, '\\Program Files (x86)', 'Cursor'),
+          path.join(drive, '\\ProgramData', 'Cursor')
         ];
 
         for (const commonPath of commonPaths) {
@@ -924,7 +825,7 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
                 userDataPath: commonPath,
                 drive: drive
               });
-              console.log(`✓ 找到系统级Kiro数据库 (${drive}): ${commonDbPath} (${stats.size} bytes)`);
+              console.log(`✓ 找到系统级Cursor数据库 (${drive}): ${commonDbPath} (${stats.size} bytes)`);
             } catch (statError) {
               console.warn(`系统级数据库 (${drive}) 存在但无法访问: ${statError.message}`);
             }
@@ -937,7 +838,7 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
         console.log('全盘搜索未找到数据库，尝试降级方案...');
 
         // 尝试当前用户的默认路径
-        const currentUserPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Kiro');
+        const currentUserPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Cursor');
         const currentDbPath = path.join(currentUserPath, 'User', 'globalStorage', 'state.vscdb');
 
         if (fs.existsSync(currentDbPath)) {
@@ -954,9 +855,9 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
 
         // 尝试环境变量指向的路径
         const envPaths = [
-          process.env.APPDATA ? path.join(process.env.APPDATA, 'Kiro') : null,
-          process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Kiro') : null,
-          process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Roaming', 'Kiro') : null
+          process.env.APPDATA ? path.join(process.env.APPDATA, 'Cursor') : null,
+          process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Cursor') : null,
+          process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Roaming', 'Cursor') : null
         ].filter(Boolean);
 
         for (const envPath of envPaths) {
@@ -998,8 +899,8 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
             continue;
           }
 
-          const userKiroPath = path.join(usersDir, username, 'Library', 'Application Support', 'Kiro');
-          const dbPath = path.join(userKiroPath, 'User', 'globalStorage', 'state.vscdb');
+          const userCursorPath = path.join(usersDir, username, 'Library', 'Application Support', 'Cursor');
+          const dbPath = path.join(userCursorPath, 'User', 'globalStorage', 'state.vscdb');
 
           if (fs.existsSync(dbPath)) {
             try {
@@ -1009,9 +910,9 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
                 path: dbPath,
                 size: stats.size,
                 modified: stats.mtime,
-                userDataPath: userKiroPath
+                userDataPath: userCursorPath
               });
-              console.log(`✓ 找到用户 ${username} 的Kiro数据库: ${dbPath}`);
+              console.log(`✓ 找到用户 ${username} 的Cursor数据库: ${dbPath}`);
             } catch (statError) {
               console.warn(`用户 ${username} 的数据库存在但无法访问: ${statError.message}`);
             }
@@ -1020,7 +921,7 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
       } catch (readDirError) {
         console.warn('读取用户目录失败:', readDirError.message);
         // 降级到只检查当前用户
-        const currentUserPath = path.join(os.homedir(), 'Library', 'Application Support', 'Kiro');
+        const currentUserPath = path.join(os.homedir(), 'Library', 'Application Support', 'Cursor');
         const currentDbPath = path.join(currentUserPath, 'User', 'globalStorage', 'state.vscdb');
 
         if (fs.existsSync(currentDbPath)) {
@@ -1045,8 +946,8 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
           .map(dirent => dirent.name);
 
         for (const username of userDirectories) {
-          const userKiroPath = path.join(usersDir, username, '.config', 'Kiro');
-          const dbPath = path.join(userKiroPath, 'User', 'globalStorage', 'state.vscdb');
+          const userCursorPath = path.join(usersDir, username, '.config', 'Cursor');
+          const dbPath = path.join(userCursorPath, 'User', 'globalStorage', 'state.vscdb');
 
           if (fs.existsSync(dbPath)) {
             try {
@@ -1056,9 +957,9 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
                 path: dbPath,
                 size: stats.size,
                 modified: stats.mtime,
-                userDataPath: userKiroPath
+                userDataPath: userCursorPath
               });
-              console.log(`✓ 找到用户 ${username} 的Kiro数据库: ${dbPath}`);
+              console.log(`✓ 找到用户 ${username} 的Cursor数据库: ${dbPath}`);
             } catch (statError) {
               console.warn(`用户 ${username} 的数据库存在但无法访问: ${statError.message}`);
             }
@@ -1067,7 +968,7 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
       } catch (readDirError) {
         console.warn('读取用户目录失败:', readDirError.message);
         // 降级到只检查当前用户
-        const currentUserPath = path.join(os.homedir(), '.config', 'Kiro');
+        const currentUserPath = path.join(os.homedir(), '.config', 'Cursor');
         const currentDbPath = path.join(currentUserPath, 'User', 'globalStorage', 'state.vscdb');
 
         if (fs.existsSync(currentDbPath)) {
@@ -1086,7 +987,7 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
     // 按修改时间排序，最新的在前面
     foundDatabases.sort((a, b) => b.modified - a.modified);
 
-    console.log(`搜索完成，找到 ${foundDatabases.length} 个Kiro数据库:`);
+    console.log(`搜索完成，找到 ${foundDatabases.length} 个Cursor数据库:`);
     foundDatabases.forEach((db, index) => {
       console.log(`  ${index + 1}. 用户: ${db.username}, 路径: ${db.path}, 大小: ${db.size} bytes, 修改时间: ${db.modified}`);
     });
@@ -1097,7 +998,7 @@ ipcMain.handle('find-all-Kiro-databases', async () => {
     };
 
   } catch (error) {
-    console.error('搜索Kiro数据库失败:', error);
+    console.error('搜索Cursor数据库失败:', error);
     return {
       success: false,
       error: error.message,
@@ -1111,7 +1012,7 @@ ipcMain.handle('open-file-dialog', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
-      { name: 'Kiro配置文件', extensions: ['json'] }
+      { name: 'Cursor配置文件', extensions: ['json'] }
     ]
   });
 
@@ -1133,7 +1034,7 @@ ipcMain.handle('open-folder-dialog', async () => {
     // 使用Promise.race添加超时处理
     const dialogPromise = dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
-      title: '选择Kiro安装目录',
+      title: '选择Cursor安装目录',
       defaultPath: app.getPath('desktop') // 默认路径为桌面，避免卡在特殊目录
     });
 
@@ -1154,10 +1055,10 @@ ipcMain.handle('open-folder-dialog', async () => {
   }
 });
 
-// 手动搜索Kiro数据库
-ipcMain.handle('manual-search-Kiro-database', async (event, searchPath) => {
+// 手动搜索Cursor数据库
+ipcMain.handle('manual-search-cursor-database', async (event, searchPath) => {
   try {
-    console.log(`开始手动搜索Kiro数据库，路径: ${searchPath}`);
+    console.log(`开始手动搜索Cursor数据库，路径: ${searchPath}`);
     const foundDatabases = [];
 
     if (!searchPath || !fs.existsSync(searchPath)) {
@@ -1218,7 +1119,7 @@ ipcMain.handle('manual-search-Kiro-database', async (event, searchPath) => {
     };
 
   } catch (error) {
-    console.error('手动搜索Kiro数据库失败:', error);
+    console.error('手动搜索Cursor数据库失败:', error);
     return {
       success: false,
       error: error.message,
@@ -1233,7 +1134,7 @@ ipcMain.handle('get-latest-notice', async () => {
     console.log('正在获取最新公告...');
 
     // 构建API请求URL
-    const apiUrl = 'http://139.199.225.37:8624/csk/notice/latest'; // Spring Boot后端API地址
+    const apiUrl = 'http://1.14.165.25:2486/csk/notice/latest'; // Spring Boot后端API地址
 
     // 首先尝试从真实API获取数据
     try {
@@ -1292,7 +1193,7 @@ ipcMain.handle('get-latest-tool-version', async () => {
     // 构建API请求URL - 获取最新续杯工具版本
     // 根据当前系统类型获取对应的版本
     const systemType = process.platform === 'win32' ? 'windows' : 'mac';
-    const apiUrl = `http://139.199.225.37:8624/csk/download/latest-tool?systemType=${systemType}`;
+    const apiUrl = `http://1.14.165.25:2486/csk/download/latest-tool?systemType=${systemType}`;
 
     // 尝试从后端API获取版本数据
     try {
@@ -1345,7 +1246,7 @@ ipcMain.handle('get-latest-popup', async () => {
     console.log('正在获取最新弹窗信息...');
 
     // 构建API请求URL - 获取最新启用的弹窗
-    const apiUrl = 'http://139.199.225.37:8624/csk/popup/latest';
+    const apiUrl = 'http://1.14.165.25:2486/csk/popup/latest';
 
     // 尝试从后端API获取弹窗数据
     try {
@@ -1402,7 +1303,7 @@ ipcMain.handle('get-qrcode-image', async () => {
     console.log('正在获取二维码图片...');
 
     // 构建API请求URL - 获取最新的二维码图片
-    const apiUrl = 'http://139.199.225.37:8624/csk/image/latest';
+    const apiUrl = 'http://1.14.165.25:2486/csk/image/latest';
 
     // 尝试从后端API获取图片数据
     try {
@@ -1411,10 +1312,10 @@ ipcMain.handle('get-qrcode-image', async () => {
 
       // 检查返回结果
       if (result && result.success && result.data && result.data.imagePath) {
-        console.log('从API获取二维码成功:', '139.199.225.37/kiro/' + result.data.imagePath);
+        console.log('从API获取二维码成功:', '1.14.165.25/csk/' + result.data.imagePath);
         return {
           success: true,
-          imagePath: '139.199.225.37/kiro/' + result.data.imagePath,
+          imagePath: '1.14.165.25/csk/' + result.data.imagePath,
           message: '获取二维码成功'
         };
       } else if (result && !result.success) {
@@ -1479,8 +1380,8 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
   }
 });
 
-// 获取Kiro路径的内部函数
-async function getKiroPaths() {
+// 获取Cursor路径的内部函数
+async function getCursorPaths() {
   // 添加超时处理
   const pathSearchTimeout = 10000; // 10秒超时
   let timeoutId;
@@ -1489,7 +1390,7 @@ async function getKiroPaths() {
     // 创建超时Promise
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
-        reject(new Error('获取Kiro路径超时'));
+        reject(new Error('获取Cursor路径超时'));
       }, pathSearchTimeout);
     });
 
@@ -1499,16 +1400,16 @@ async function getKiroPaths() {
         let basePath, packagePath, mainPath, workbenchPath;
 
         // 首先检查是否有自定义路径
-        if (currentSettings.customKiroPath && currentSettings.customKiroPath.trim()) {
+        if (currentSettings.customCursorPath && currentSettings.customCursorPath.trim()) {
           // 使用自定义路径
-          const customPath = currentSettings.customKiroPath.trim();
-          console.log(`使用自定义Kiro路径: ${customPath}`);
+          const customPath = currentSettings.customCursorPath.trim();
+          console.log(`使用自定义Cursor路径: ${customPath}`);
 
-          // 检查自定义路径是否是Kiro安装目录
-          if (fs.existsSync(path.join(customPath, 'Kiro.exe')) ||
-              fs.existsSync(path.join(customPath, 'Kiro.app')) ||
-              fs.existsSync(path.join(customPath, 'windsurf'))) {
-            // 这是Kiro的安装根目录，需要找到resources/app
+          // 检查自定义路径是否是Cursor安装目录
+          if (fs.existsSync(path.join(customPath, 'Cursor.exe')) ||
+              fs.existsSync(path.join(customPath, 'Cursor.app')) ||
+              fs.existsSync(path.join(customPath, 'cursor'))) {
+            // 这是Cursor的安装根目录，需要找到resources/app
             if (process.platform === 'win32') {
               basePath = path.join(customPath, 'resources', 'app');
             } else if (process.platform === 'darwin') {
@@ -1527,11 +1428,11 @@ async function getKiroPaths() {
           // 使用默认路径
           if (process.platform === 'win32') {
             // Windows
-            basePath = path.join(os.homedir(), 'AppData', 'Local', 'Programs', 'Kiro', 'resources', 'app');
+            basePath = path.join(os.homedir(), 'AppData', 'Local', 'Programs', 'Cursor', 'resources', 'app');
 
             // 备用路径1: 可能的程序文件安装路径
             if (!fs.existsSync(basePath)) {
-              const programFilesPath = path.join(process.env['ProgramFiles'], 'Kiro', 'resources', 'app');
+              const programFilesPath = path.join(process.env['ProgramFiles'], 'Cursor', 'resources', 'app');
               if (fs.existsSync(programFilesPath)) {
                 basePath = programFilesPath;
               }
@@ -1539,19 +1440,19 @@ async function getKiroPaths() {
 
             // 备用路径2: 可能的x86程序文件安装路径
             if (!fs.existsSync(basePath) && process.env['ProgramFiles(x86)']) {
-              const programFilesx86Path = path.join(process.env['ProgramFiles(x86)'], 'Kiro', 'resources', 'app');
+              const programFilesx86Path = path.join(process.env['ProgramFiles(x86)'], 'Cursor', 'resources', 'app');
               if (fs.existsSync(programFilesx86Path)) {
                 basePath = programFilesx86Path;
               }
             }
           } else if (process.platform === 'darwin') {
             // macOS
-            basePath = '/Applications/Kiro.app/Contents/Resources/app';
+            basePath = '/Applications/Cursor.app/Contents/Resources/app';
           } else {
             // Linux
             const possiblePaths = [
-              '/opt/Kiro/resources/app',
-              '/usr/share/windsurf/resources/app'
+              '/opt/Cursor/resources/app',
+              '/usr/share/cursor/resources/app'
             ];
             for (const p of possiblePaths) {
               if (fs.existsSync(p)) {
@@ -1563,34 +1464,24 @@ async function getKiroPaths() {
         }
 
         if (!basePath || !fs.existsSync(basePath)) {
-          resolve({ error: 'Kiro安装路径不存在' });
+          resolve({ error: 'Cursor安装路径不存在' });
           return;
         }
 
         packagePath = path.join(basePath, 'package.json');
-        const productPath = path.join(basePath, 'product.json');
         mainPath = path.join(basePath, 'out', 'main.js');
         workbenchPath = path.join(basePath, 'out', 'vs', 'workbench', 'workbench.desktop.main.js');
 
         if (!fs.existsSync(packagePath) || !fs.existsSync(mainPath)) {
-          resolve({ error: 'Kiro核心文件不存在' });
+          resolve({ error: 'Cursor核心文件不存在' });
           return;
         }
 
-        // 读取版本信息 - 从product.json的windsurfVersion字段读取
+        // 读取版本信息
         let version = '';
         try {
-          if (fs.existsSync(productPath)) {
-            const productContent = fs.readFileSync(productPath, 'utf8');
-            const productData = JSON.parse(productContent);
-            version = productData.windsurfVersion || productData.version || '';
-            console.log(`从product.json读取到Kiro版本: ${version}`);
-          } else {
-            console.warn('product.json文件不存在，尝试从package.json读取');
-            const packageContent = fs.readFileSync(packagePath, 'utf8');
-            version = JSON.parse(packageContent).version;
-            console.log(`从package.json读取到版本: ${version}`);
-          }
+          const packageContent = fs.readFileSync(packagePath, 'utf8');
+          version = JSON.parse(packageContent).version;
         } catch (err) {
           console.error('读取版本信息失败:', err);
         }
@@ -1604,8 +1495,8 @@ async function getKiroPaths() {
         });
       } catch (error) {
         // 捕获内部错误并解析为错误结果，而不是抛出异常
-        console.error('获取Kiro路径时发生错误:', error);
-        resolve({ error: `获取Kiro路径失败: ${error.message}` });
+        console.error('获取Cursor路径时发生错误:', error);
+        resolve({ error: `获取Cursor路径失败: ${error.message}` });
       }
     });
 
@@ -1616,18 +1507,18 @@ async function getKiroPaths() {
 
   } catch (error) {
     clearTimeout(timeoutId); // 清除超时计时器
-    console.error('getKiroPaths失败:', error);
-    return { error: `获取Kiro路径失败: ${error.message}` };
+    console.error('getCursorPaths失败:', error);
+    return { error: `获取Cursor路径失败: ${error.message}` };
   }
 }
 
-// 获取Kiro相关路径
-ipcMain.handle('get-Kiro-paths', async () => {
-  return await getKiroPaths();
+// 获取Cursor相关路径
+ipcMain.handle('get-cursor-paths', async () => {
+  return await getCursorPaths();
 });
 
-// 验证Kiro文件完整性的辅助函数
-function validateKiroFile(filePath, content) {
+// 验证Cursor文件完整性的辅助函数
+function validateCursorFile(filePath, content) {
   try {
     // 基本的语法检查
     const openBraces = (content.match(/\{/g) || []).length;
@@ -1663,8 +1554,8 @@ function validateKiroFile(filePath, content) {
   }
 }
 
-// 基于Python项目逻辑的简化版本 - 修改Kiro的main.js文件
-ipcMain.handle('modify-Kiro-main-js', async (event, mainPath) => {
+// 基于Python项目逻辑的简化版本 - 修改Cursor的main.js文件
+ipcMain.handle('modify-cursor-main-js', async (event, mainPath) => {
   try {
     if (!fs.existsSync(mainPath)) {
       return { success: false, error: '文件不存在' };
@@ -1685,7 +1576,7 @@ ipcMain.handle('modify-Kiro-main-js', async (event, mainPath) => {
     console.log('文件大小:', content.length, '字节');
 
     // 检查是否启用强制模式
-    const forceMode = process.env.FORCE_Kiro_MODIFY === 'true';
+    const forceMode = process.env.FORCE_CURSOR_MODIFY === 'true';
     console.log('强制修改模式:', forceMode ? '已启用' : '未启用');
 
     let newContent = content;
@@ -1771,7 +1662,7 @@ ipcMain.handle('modify-Kiro-main-js', async (event, mainPath) => {
     if (modified) {
       console.log('执行语法安全检查...');
 
-      const validation = validateKiroFile(mainPath, newContent);
+      const validation = validateCursorFile(mainPath, newContent);
       if (!validation.valid) {
         console.error(`语法验证失败: ${validation.error}`);
         console.log('恢复原始内容...');
@@ -1783,7 +1674,7 @@ ipcMain.handle('modify-Kiro-main-js', async (event, mainPath) => {
     }
 
     // 如果所有尝试都失败，提供强制成功选项（但要更加谨慎）
-    if (!modified && process.env.FORCE_Kiro_MODIFY === 'true') {
+    if (!modified && process.env.FORCE_CURSOR_MODIFY === 'true') {
       console.log('强制修改模式开启，尝试最小化修改...');
 
       // 在强制模式下，只进行最基本的替换，避免破坏语法
@@ -1842,8 +1733,8 @@ ipcMain.handle('modify-Kiro-main-js', async (event, mainPath) => {
   }
 });
 
-// 分析Kiro文件内容
-ipcMain.handle('analyze-Kiro-file', async (event, filePath) => {
+// 分析Cursor文件内容
+ipcMain.handle('analyze-cursor-file', async (event, filePath) => {
   try {
     if (!fs.existsSync(filePath)) {
       return { success: false, error: '文件不存在' };
@@ -1898,8 +1789,8 @@ ipcMain.handle('analyze-Kiro-file', async (event, filePath) => {
   }
 });
 
-// 恢复Kiro文件备份
-ipcMain.handle('restore-Kiro-backup', async (event, filePath) => {
+// 恢复Cursor文件备份
+ipcMain.handle('restore-cursor-backup', async (event, filePath) => {
   try {
     const backupPath = `${filePath}.bak`;
 
@@ -1923,7 +1814,7 @@ ipcMain.handle('restore-Kiro-backup', async (event, filePath) => {
 });
 
 // 修改workbench.desktop.main.js文件
-ipcMain.handle('modify-Kiro-workbench', async (event, workbenchPath, isValid, days) => {
+ipcMain.handle('modify-cursor-workbench', async (event, workbenchPath, isValid, days) => {
   try {
     if (!fs.existsSync(workbenchPath)) {
       return { success: false, error: '文件不存在' };
@@ -1951,7 +1842,7 @@ ipcMain.handle('modify-Kiro-workbench', async (event, workbenchPath, isValid, da
 
       // 设置使用天数
       patterns.push({
-        regex: /(getKiroTeamInfo:function\(\)\{return\{)([^}]*?)(\}\})/g,
+        regex: /(getCursorTeamInfo:function\(\)\{return\{)([^}]*?)(\}\})/g,
         replacement: `$1usageDays:${days}$3`
       });
     } else {
@@ -1973,7 +1864,7 @@ ipcMain.handle('modify-Kiro-workbench', async (event, workbenchPath, isValid, da
     }
 
     // 如果所有尝试都失败，提供强制成功选项
-    if (!modified && process.env.FORCE_Kiro_MODIFY === 'true') {
+    if (!modified && process.env.FORCE_CURSOR_MODIFY === 'true') {
       console.log('强制修改模式开启，跳过workbench.desktop.main.js模式匹配检查');
       modified = true;
 
@@ -2019,10 +1910,202 @@ function generateNewIds() {
   };
 }
 
+// 更新SQLite数据库中的ID
+ipcMain.handle('update-cursor-sqlite-db', async (event, dbPath) => {
+  try {
+    if (!fs.existsSync(dbPath)) {
+      return { success: true, message: '数据库文件不存在，跳过更新' };
+    }
+
+    // 生成新的ID
+    const newIds = generateNewIds();
+
+    // 创建备份
+    const backupPath = `${dbPath}.bak`;
+    if (!fs.existsSync(backupPath)) {
+      fs.copyFileSync(dbPath, backupPath);
+      console.log(`已创建数据库备份: ${backupPath}`);
+    }
+
+    const db = new Database(dbPath);
+
+      // 检查表是否存在
+      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
+      if (!tableCheck) {
+        db.close();
+        return { success: true, message: 'ItemTable表不存在，跳过更新' };
+      }
+
+      // 开始更新
+      const updatedKeys = [];
+      const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
+      const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
+      const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
+
+      // 开始事务
+      const transaction = db.transaction(() => {
+        // 对每个ID进行更新或插入
+        Object.entries(newIds).forEach(([key, value]) => {
+          try {
+            const row = countStmt.get(key);
+
+            if (row && row.count > 0) {
+              updateStmt.run(value, key);
+              updatedKeys.push(key);
+              console.log(`更新键${key} -> ${value}`);
+            } else {
+              insertStmt.run(key, value);
+              updatedKeys.push(key);
+              console.log(`插入键${key} -> ${value}`);
+            }
+          } catch (err) {
+            console.error(`处理键${key}失败:`, err);
+          }
+        });
+      });
+
+      transaction();
+      db.close();
+
+    return {
+      success: true,
+      message: '数据库更新成功',
+      updatedKeys,
+      newIds
+    };
+  } catch (error) {
+    console.error('更新SQLite数据库失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // 重置机器ID文件 - 修复版本，基于参考代码
-ipcMain.handle('reset-Kiro-machine-id', async () => {
+ipcMain.handle('reset-cursor-machine-id', async () => {
   return await resetStorageMachineIds();
 });
+
+// 保存Cursor当前工作区路径
+async function saveCurrentWorkspace(dbPath) {
+  try {
+    console.log('正在保存当前Cursor工作区路径...');
+
+    // 确保数据库存在
+    if (!fs.existsSync(dbPath)) {
+      console.warn('数据库文件不存在，无法保存工作区');
+      return { success: false, error: '数据库文件不存在' };
+    }
+
+    // 连接数据库读取工作区信息
+    const db = new Database(dbPath, { readonly: true });
+
+    // 查询最近打开的文件夹/工作区
+    const workspaceQuery = db.prepare("SELECT value FROM ItemTable WHERE key = ?");
+
+    // 尝试多个可能的键
+    const possibleKeys = [
+      'workbench.panel.recentlyOpenedPathsList',
+      'history.recentlyOpenedPathsList',
+      'openedPathsList.entries',
+      'workspaces.recentlyOpened'
+    ];
+
+    let workspaceData = null;
+    let usedKey = null;
+
+    for (const key of possibleKeys) {
+      const result = workspaceQuery.get(key);
+      if (result && result.value) {
+        workspaceData = result.value;
+        usedKey = key;
+        console.log(`✓ 找到工作区数据，使用键: ${key}`);
+        break;
+      }
+    }
+
+    db.close();
+
+    if (!workspaceData) {
+      console.warn('未找到工作区信息');
+      return { success: false, error: '未找到工作区信息' };
+    }
+
+    // 解析工作区数据
+    let workspace = null;
+    try {
+      const parsed = JSON.parse(workspaceData);
+
+      // 提取第一个工作区路径（最近使用的）
+      if (parsed.entries && Array.isArray(parsed.entries) && parsed.entries.length > 0) {
+        const firstEntry = parsed.entries[0];
+        let rawPath = null;
+
+        if (firstEntry.folderUri) {
+          rawPath = firstEntry.folderUri;
+        } else if (firstEntry.workspace && firstEntry.workspace.configPath) {
+          rawPath = firstEntry.workspace.configPath;
+        }
+
+        if (rawPath) {
+          // 处理 file:/// 格式的路径
+          if (rawPath.startsWith('file:///')) {
+            rawPath = rawPath.substring(8); // 去掉 file:///
+          } else if (rawPath.startsWith('file://')) {
+            rawPath = rawPath.substring(7); // 去掉 file://
+          }
+
+          // URL解码（处理中文和特殊字符，如 d%3A -> d:, %E5%8D%A1 -> 卡）
+          try {
+            workspace = decodeURIComponent(rawPath);
+          } catch (decodeError) {
+            console.warn('URL解码失败，使用原始路径:', decodeError);
+            workspace = rawPath;
+          }
+
+          // 统一路径分隔符为反斜杠（Windows）
+          if (process.platform === 'win32') {
+            workspace = workspace.replace(/\//g, '\\');
+            // 确保盘符是大写
+            if (workspace.length > 1 && workspace[1] === ':') {
+              workspace = workspace[0].toUpperCase() + workspace.substring(1);
+            }
+          }
+
+          console.log(`✓ 原始URI: ${firstEntry.folderUri || firstEntry.workspace?.configPath}`);
+          console.log(`✓ 解码后路径: ${workspace}`);
+        }
+      }
+    } catch (parseError) {
+      console.warn('⚠ 解析工作区数据失败:', parseError);
+    }
+
+    if (!workspace) {
+      console.warn('⚠ 无法提取工作区路径');
+      return { success: false, error: '无法提取工作区路径' };
+    }
+
+    // 保存到globalStorage文件夹
+    const globalStoragePath = path.join(path.dirname(dbPath), 'workspace-backup.json');
+    const backupData = {
+      workspace: workspace,
+      timestamp: new Date().toISOString(),
+      dbPath: dbPath
+    };
+
+    fs.writeFileSync(globalStoragePath, JSON.stringify(backupData, null, 2), 'utf8');
+    console.log(`✓ 工作区路径已保存到: ${globalStoragePath}`);
+    console.log(`✓ 保存的工作区: ${workspace}`);
+
+    return {
+      success: true,
+      workspace: workspace,
+      backupPath: globalStoragePath
+    };
+
+  } catch (error) {
+    console.error('保存工作区路径失败:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 // 读取保存的工作区路径
 async function loadSavedWorkspace(dbPath) {
@@ -2072,32 +2155,32 @@ async function loadSavedWorkspace(dbPath) {
   }
 }
 
-// 检查Kiro是否正在运行（增强版 - 多种检测方法）
-ipcMain.handle('check-Kiro-running', async () => {
+// 检查Cursor是否正在运行（增强版 - 多种检测方法）
+ipcMain.handle('check-cursor-running', async () => {
   try {
     const { exec } = require('child_process');
 
     return new Promise((resolve) => {
       if (process.platform === 'win32') {
         // Windows系统 - 使用多种方法检测
-        console.log('开始检测Kiro进程...');
+        console.log('开始检测Cursor进程...');
         
         // 方法1: 使用tasklist（常规方法）
-        exec('tasklist /FI "IMAGENAME eq Kiro.exe"', { encoding: 'utf8' }, (error, stdout, stderr) => {
+        exec('tasklist /FI "IMAGENAME eq Cursor.exe"', { encoding: 'utf8' }, (error, stdout, stderr) => {
           console.log('tasklist命令执行结果:');
           console.log('- error:', error ? error.message : 'null');
           console.log('- stdout长度:', stdout ? stdout.length : 0);
           console.log('- stdout内容:', stdout);
           
-          if (!error && stdout && stdout.includes('Kiro.exe')) {
-            console.log('✓ 方法1检测: Kiro正在运行');
+          if (!error && stdout && stdout.includes('Cursor.exe')) {
+            console.log('✓ 方法1检测: Cursor正在运行');
             resolve(true);
             return;
           }
           
           // 方法2: 使用WMIC（备用方法，更可靠）
           console.log('方法1未检测到，尝试方法2...');
-          exec('wmic process where "name=\'Kiro.exe\'" get ProcessId', { encoding: 'utf8' }, (error2, stdout2, stderr2) => {
+          exec('wmic process where "name=\'Cursor.exe\'" get ProcessId', { encoding: 'utf8' }, (error2, stdout2, stderr2) => {
             console.log('WMIC命令执行结果:');
             console.log('- error:', error2 ? error2.message : 'null');
             console.log('- stdout:', stdout2);
@@ -2108,7 +2191,7 @@ ipcMain.handle('check-Kiro-running', async () => {
               console.log('- 找到的进程数:', lines.length);
               
               if (lines.length > 0) {
-                console.log('✓ 方法2检测: Kiro正在运行');
+                console.log('✓ 方法2检测: Cursor正在运行');
                 resolve(true);
                 return;
               }
@@ -2116,52 +2199,52 @@ ipcMain.handle('check-Kiro-running', async () => {
             
             // 方法3: 使用PowerShell（最可靠的方法）
             console.log('方法2未检测到，尝试方法3（PowerShell）...');
-            const psCommand = 'powershell -Command "Get-Process -Name Kiro -ErrorAction SilentlyContinue | Select-Object -First 1"';
+            const psCommand = 'powershell -Command "Get-Process -Name Cursor -ErrorAction SilentlyContinue | Select-Object -First 1"';
             exec(psCommand, { encoding: 'utf8' }, (error3, stdout3, stderr3) => {
               console.log('PowerShell命令执行结果:');
               console.log('- error:', error3 ? error3.message : 'null');
               console.log('- stdout:', stdout3);
               
               if (!error3 && stdout3 && stdout3.trim().length > 0) {
-                console.log('✓ 方法3检测: Kiro正在运行');
+                console.log('✓ 方法3检测: Cursor正在运行');
                 resolve(true);
                 return;
               }
               
               // 所有方法都未检测到
-              console.log('✗ 所有检测方法均未发现Kiro进程');
+              console.log('✗ 所有检测方法均未发现Cursor进程');
               resolve(false);
             });
           });
         });
       } else if (process.platform === 'darwin') {
         // macOS系统
-        exec('pgrep -f Kiro', (error, stdout) => {
+        exec('pgrep -f Cursor', (error, stdout) => {
           if (error) {
-            console.log('Kiro运行状态: 未运行');
+            console.log('Cursor运行状态: 未运行');
             resolve(false);
             return;
           }
           const isRunning = stdout.trim().length > 0;
-          console.log(`Kiro运行状态: ${isRunning ? '运行中' : '未运行'}`);
+          console.log(`Cursor运行状态: ${isRunning ? '运行中' : '未运行'}`);
           resolve(isRunning);
         });
       } else {
         // Linux系统
-        exec('pgrep -f Kiro', (error, stdout) => {
+        exec('pgrep -f cursor', (error, stdout) => {
           if (error) {
-            console.log('Kiro运行状态: 未运行');
+            console.log('Cursor运行状态: 未运行');
             resolve(false);
             return;
           }
           const isRunning = stdout.trim().length > 0;
-          console.log(`Kiro运行状态: ${isRunning ? '运行中' : '未运行'}`);
+          console.log(`Cursor运行状态: ${isRunning ? '运行中' : '未运行'}`);
           resolve(isRunning);
         });
       }
     });
   } catch (error) {
-    console.error('检查Kiro运行状态失败:', error);
+    console.error('检查Cursor运行状态失败:', error);
     return false;
   }
 });
@@ -2171,13 +2254,13 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// 检查Kiro进程是否还在运行（增强版 - 用于验证关闭）
-function checkKiroRunning() {
+// 检查Cursor进程是否还在运行（增强版 - 用于验证关闭）
+function checkCursorRunning() {
   return new Promise((resolve) => {
     const { exec } = require('child_process');
     if (process.platform === 'win32') {
       // Windows - 优先使用PowerShell（更可靠）
-      const psCommand = 'powershell -Command "Get-Process -Name Kiro -ErrorAction SilentlyContinue | Select-Object -First 1"';
+      const psCommand = 'powershell -Command "Get-Process -Name Cursor -ErrorAction SilentlyContinue | Select-Object -First 1"';
       exec(psCommand, { encoding: 'utf8' }, (error, stdout) => {
         if (!error && stdout && stdout.trim().length > 0) {
           resolve(true);
@@ -2185,9 +2268,9 @@ function checkKiroRunning() {
         }
         
         // 备用：使用tasklist
-        exec('tasklist /FI "IMAGENAME eq Kiro.exe"', { encoding: 'utf8' }, (error2, stdout2) => {
+        exec('tasklist /FI "IMAGENAME eq Cursor.exe"', { encoding: 'utf8' }, (error2, stdout2) => {
           if (!error2 && stdout2) {
-            const lines = stdout2.split('\n').filter(line => line.includes('Kiro.exe'));
+            const lines = stdout2.split('\n').filter(line => line.includes('Cursor.exe'));
             resolve(lines.length > 0);
           } else {
             resolve(false);
@@ -2195,38 +2278,36 @@ function checkKiroRunning() {
         });
       });
     } else if (process.platform === 'darwin') {
-      // macOS - 检查 Kiro.app 相关进程
-      exec('pgrep -f "Kiro.app"', (error, stdout) => {
+      exec('pgrep -f Cursor', (error, stdout) => {
         resolve(!error && stdout.trim().length > 0);
       });
     } else {
-      exec('pgrep -f Kiro', (error, stdout) => {
+      exec('pgrep -f cursor', (error, stdout) => {
         resolve(!error && stdout.trim().length > 0);
       });
     }
   });
 }
 
-// 强制关闭Kiro（确保所有进程完全关闭）
-ipcMain.handle('force-close-Kiro', async () => {
+// 强制关闭Cursor（确保所有进程完全关闭）
+ipcMain.handle('force-close-cursor', async () => {
   try {
-    console.log('正在强制关闭Kiro...');
+    console.log('正在强制关闭Cursor...');
     const { exec } = require('child_process');
     
-    // 第一步：检查Kiro是否正在运行
-    const isRunning = await checkKiroRunning();
+    // 第一步：检查Cursor是否正在运行
+    const isRunning = await checkCursorRunning();
     if (!isRunning) {
-      console.log('✓ Kiro未运行，无需关闭');
-      return { success: true, message: 'Kiro未运行或已关闭' };
+      console.log('✓ Cursor未运行，无需关闭');
+      return { success: true, message: 'Cursor未运行或已关闭' };
     }
 
-    console.log('✓ 检测到Kiro正在运行，开始关闭进程...');
+    console.log('✓ 检测到Cursor正在运行，开始关闭进程...');
 
     // 第二步：执行关闭命令
     return new Promise((resolve) => {
-      // macOS 使用 pkill -9 -f 匹配完整命令行，确保杀死所有 Kiro.app 相关进程
-      const killCommand = process.platform === 'win32' ? 'taskkill /F /IM Kiro.exe' :
-                         process.platform === 'darwin' ? 'pkill -9 -f "Kiro.app"' : 'pkill -9 -f Kiro';
+      const killCommand = process.platform === 'win32' ? 'taskkill /F /IM Cursor.exe' :
+                         process.platform === 'darwin' ? 'pkill -9 Cursor' : 'pkill -9 cursor';
       
       exec(killCommand, async (error, stdout, stderr) => {
         if (error) {
@@ -2236,24 +2317,24 @@ ipcMain.handle('force-close-Kiro', async () => {
         }
 
         // 第三步：循环检测确保所有进程完全关闭
-        console.log('开始验证所有Kiro进程是否完全关闭...');
+        console.log('开始验证所有Cursor进程是否完全关闭...');
         const maxAttempts = 30; // 最多检测30次
         const checkInterval = 500; // 每500毫秒检测一次
         let attempts = 0;
 
         const verifyInterval = setInterval(async () => {
           attempts++;
-          const stillRunning = await checkKiroRunning();
+          const stillRunning = await checkCursorRunning();
           
           if (!stillRunning) {
             // 所有进程已关闭
             clearInterval(verifyInterval);
-            console.log(`✓ 验证完成：所有Kiro进程已完全关闭 (检测次数: ${attempts})`);
-            resolve({ success: true, message: '所有Kiro进程已确认关闭' });
+            console.log(`✓ 验证完成：所有Cursor进程已完全关闭 (检测次数: ${attempts})`);
+            resolve({ success: true, message: '所有Cursor进程已确认关闭' });
           } else if (attempts >= maxAttempts) {
             // 超时，但仍有进程在运行
             clearInterval(verifyInterval);
-            console.log(`⚠ 警告：达到最大检测次数(${maxAttempts})，但仍检测到Kiro进程`);
+            console.log(`⚠ 警告：达到最大检测次数(${maxAttempts})，但仍检测到Cursor进程`);
             
             // 再次尝试强制关闭
             console.log('尝试再次强制关闭残留进程...');
@@ -2264,51 +2345,51 @@ ipcMain.handle('force-close-Kiro', async () => {
               
               // 再等待2秒后最终检测
               await delay(2000);
-              const finalCheck = await checkKiroRunning();
+              const finalCheck = await checkCursorRunning();
               
               if (finalCheck) {
-                console.log('✗ 仍有Kiro进程未能关闭，可能需要手动处理');
+                console.log('✗ 仍有Cursor进程未能关闭，可能需要手动处理');
                 resolve({ 
                   success: false, 
-                  error: '部分Kiro进程未能关闭，请手动关闭后重试',
+                  error: '部分Cursor进程未能关闭，请手动关闭后重试',
                   warning: true
                 });
               } else {
                 console.log('✓ 再次关闭后验证通过，所有进程已关闭');
-                resolve({ success: true, message: '所有Kiro进程已确认关闭（重试后成功）' });
+                resolve({ success: true, message: '所有Cursor进程已确认关闭（重试后成功）' });
               }
             });
           } else {
             // 继续等待
-            console.log(`→ 检测中... (${attempts}/${maxAttempts}) - 仍有Kiro进程在运行`);
+            console.log(`→ 检测中... (${attempts}/${maxAttempts}) - 仍有Cursor进程在运行`);
           }
         }, checkInterval);
       });
     });
   } catch (error) {
-    console.error('强制关闭Kiro失败:', error);
+    console.error('强制关闭Cursor失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-// 完整的Kiro重启流程（关闭->等待->启动）
-ipcMain.handle('restart-Kiro-complete', async () => {
+// 完整的Cursor重启流程（关闭->等待->启动）
+ipcMain.handle('restart-cursor-complete', async () => {
   try {
-    console.log('开始完整的Kiro重启流程...');
+    console.log('开始完整的Cursor重启流程...');
 
-    // 1. 检查Kiro是否运行
+    // 1. 检查Cursor是否运行
     const isRunning = await new Promise((resolve) => {
       const { exec } = require('child_process');
       if (process.platform === 'win32') {
-        exec('tasklist /FI "IMAGENAME eq Kiro.exe"', (error, stdout) => {
-          resolve(!error && stdout.includes('Kiro.exe'));
+        exec('tasklist /FI "IMAGENAME eq Cursor.exe"', (error, stdout) => {
+          resolve(!error && stdout.includes('Cursor.exe'));
         });
       } else if (process.platform === 'darwin') {
-        exec('pgrep -f Kiro', (error, stdout) => {
+        exec('pgrep -f Cursor', (error, stdout) => {
           resolve(!error && stdout.trim().length > 0);
         });
       } else {
-        exec('pgrep -f Kiro', (error, stdout) => {
+        exec('pgrep -f cursor', (error, stdout) => {
           resolve(!error && stdout.trim().length > 0);
         });
       }
@@ -2316,43 +2397,43 @@ ipcMain.handle('restart-Kiro-complete', async () => {
 
     // 2. 如果运行中，强制关闭
     if (isRunning) {
-      console.log('检测到Kiro正在运行，正在强制关闭...');
+      console.log('检测到Cursor正在运行，正在强制关闭...');
       const closeResult = await new Promise((resolve) => {
         const { exec } = require('child_process');
         if (process.platform === 'win32') {
-          exec('taskkill /F /IM Kiro.exe', (error) => {
+          exec('taskkill /F /IM Cursor.exe', (error) => {
             resolve({ success: !error });
           });
         } else if (process.platform === 'darwin') {
-          exec('pkill -9 -f "Kiro.app"', (error) => {
+          exec('pkill -9 Cursor', (error) => {
             resolve({ success: !error });
           });
         } else {
-          exec('pkill -9 -f Kiro', (error) => {
+          exec('pkill -9 cursor', (error) => {
             resolve({ success: !error });
           });
         }
       });
 
       if (closeResult.success) {
-        console.log('Kiro已强制关闭');
+        console.log('Cursor已强制关闭');
       } else {
-        console.log('关闭Kiro时出现问题，但继续执行');
+        console.log('关闭Cursor时出现问题，但继续执行');
       }
 
       // 等待进程完全关闭
       console.log('等待进程完全关闭...');
       await delay(2000);
     } else {
-      console.log('Kiro未运行，直接启动');
+      console.log('Cursor未运行，直接启动');
     }
 
-    // 3. 启动Kiro
-    console.log('正在启动Kiro...');
+    // 3. 启动Cursor
+    console.log('正在启动Cursor...');
     const launchResult = await new Promise(async (resolve) => {
       try {
-        // 获取Kiro路径
-        const pathsResult = await getKiroPaths();
+        // 获取Cursor路径
+        const pathsResult = await getCursorPaths();
         if (pathsResult.error) {
           resolve({ success: false, error: pathsResult.error });
           return;
@@ -2360,48 +2441,48 @@ ipcMain.handle('restart-Kiro-complete', async () => {
 
         const { spawn } = require('child_process');
         let executablePath;
-        let windsurfInstallPath;
+        let cursorInstallPath;
 
         if (process.platform === 'win32') {
           // Windows: 从resources/app路径推导出安装路径
-          windsurfInstallPath = path.dirname(path.dirname(pathsResult.basePath)); // 去掉resources/app
-          executablePath = path.join(windsurfInstallPath, 'Kiro.exe');
+          cursorInstallPath = path.dirname(path.dirname(pathsResult.basePath)); // 去掉resources/app
+          executablePath = path.join(cursorInstallPath, 'Cursor.exe');
         } else if (process.platform === 'darwin') {
           // macOS: 从Contents/Resources/app路径推导出.app路径
-          windsurfInstallPath = path.dirname(path.dirname(path.dirname(pathsResult.basePath))); // 去掉Contents/Resources/app
-          executablePath = windsurfInstallPath; // .app路径
+          cursorInstallPath = path.dirname(path.dirname(path.dirname(pathsResult.basePath))); // 去掉Contents/Resources/app
+          executablePath = cursorInstallPath; // .app路径
         } else {
           // Linux: 从resources/app路径推导出安装路径
-          windsurfInstallPath = path.dirname(path.dirname(pathsResult.basePath));
-          executablePath = path.join(windsurfInstallPath, 'windsurf');
+          cursorInstallPath = path.dirname(path.dirname(pathsResult.basePath));
+          executablePath = path.join(cursorInstallPath, 'cursor');
         }
 
-        console.log(`Kiro安装路径: ${windsurfInstallPath}`);
-        console.log(`Kiro可执行文件: ${executablePath}`);
+        console.log(`Cursor安装路径: ${cursorInstallPath}`);
+        console.log(`Cursor可执行文件: ${executablePath}`);
 
         // 检查可执行文件是否存在
         if (!fs.existsSync(executablePath)) {
-          resolve({ success: false, error: `Kiro可执行文件不存在: ${executablePath}` });
+          resolve({ success: false, error: `Cursor可执行文件不存在: ${executablePath}` });
           return;
         }
 
         // 启动进程
-        let KiroProcess;
+        let cursorProcess;
         if (process.platform === 'darwin') {
-          KiroProcess = spawn('open', ['-a', executablePath], {
+          cursorProcess = spawn('open', ['-a', executablePath], {
             detached: true,
             stdio: 'ignore'
           });
         } else {
-          KiroProcess = spawn(executablePath, [], {
+          cursorProcess = spawn(executablePath, [], {
             detached: true,
             stdio: 'ignore'
           });
         }
 
-        KiroProcess.unref();
-        console.log(`Kiro已启动: ${executablePath}`);
-        resolve({ success: true, message: 'Kiro启动成功' });
+        cursorProcess.unref();
+        console.log(`Cursor已启动: ${executablePath}`);
+        resolve({ success: true, message: 'Cursor启动成功' });
 
       } catch (error) {
         resolve({ success: false, error: error.message });
@@ -2409,17 +2490,22 @@ ipcMain.handle('restart-Kiro-complete', async () => {
     });
 
     if (launchResult.success) {
-      console.log('Kiro重启流程完成');
-      return { success: true, message: 'Kiro重启成功' };
+      console.log('Cursor重启流程完成');
+      return { success: true, message: 'Cursor重启成功' };
     } else {
-      console.error('启动Kiro失败:', launchResult.error);
-      return { success: false, error: `启动Kiro失败: ${launchResult.error}` };
+      console.error('启动Cursor失败:', launchResult.error);
+      return { success: false, error: `启动Cursor失败: ${launchResult.error}` };
     }
 
   } catch (error) {
-    console.error('Kiro重启流程失败:', error);
+    console.error('Cursor重启流程失败:', error);
     return { success: false, error: error.message };
   }
+});
+
+// 保存当前工作区路径（IPC处理器）
+ipcMain.handle('save-current-workspace', async (event, dbPath) => {
+  return await saveCurrentWorkspace(dbPath);
 });
 
 // 读取保存的工作区路径（IPC处理器）
@@ -2427,43 +2513,43 @@ ipcMain.handle('load-saved-workspace', async (event, dbPath) => {
   return await loadSavedWorkspace(dbPath);
 });
 
-// 启动Kiro（支持工作区路径参数）
-ipcMain.handle('launch-Kiro', async (event, workspacePath = null) => {
+// 启动Cursor（支持工作区路径参数）
+ipcMain.handle('launch-cursor', async (event, workspacePath = null) => {
   try {
-    console.log('正在启动Kiro...');
+    console.log('正在启动Cursor...');
     if (workspacePath) {
       console.log(`使用工作区路径: ${workspacePath}`);
     }
 
-    // 获取Kiro路径
-    const pathsResult = await getKiroPaths();
+    // 获取Cursor路径
+    const pathsResult = await getCursorPaths();
     if (pathsResult.error) {
       throw new Error(pathsResult.error);
     }
 
     let executablePath;
-    let windsurfInstallPath;
+    let cursorInstallPath;
 
     if (process.platform === 'win32') {
       // Windows: 从resources/app路径推导出安装路径
-      windsurfInstallPath = path.dirname(path.dirname(pathsResult.basePath)); // 去掉resources/app
-      executablePath = path.join(windsurfInstallPath, 'Kiro.exe');
+      cursorInstallPath = path.dirname(path.dirname(pathsResult.basePath)); // 去掉resources/app
+      executablePath = path.join(cursorInstallPath, 'Cursor.exe');
     } else if (process.platform === 'darwin') {
       // macOS: 从Contents/Resources/app路径推导出.app路径
-      windsurfInstallPath = path.dirname(path.dirname(path.dirname(pathsResult.basePath))); // 去掉Contents/Resources/app
-      executablePath = windsurfInstallPath; // .app路径
+      cursorInstallPath = path.dirname(path.dirname(path.dirname(pathsResult.basePath))); // 去掉Contents/Resources/app
+      executablePath = cursorInstallPath; // .app路径
     } else {
       // Linux: 从resources/app路径推导出安装路径
-      windsurfInstallPath = path.dirname(path.dirname(pathsResult.basePath));
-      executablePath = path.join(windsurfInstallPath, 'windsurf');
+      cursorInstallPath = path.dirname(path.dirname(pathsResult.basePath));
+      executablePath = path.join(cursorInstallPath, 'cursor');
     }
 
-    console.log(`Kiro安装路径: ${windsurfInstallPath}`);
-    console.log(`Kiro可执行文件: ${executablePath}`);
+    console.log(`Cursor安装路径: ${cursorInstallPath}`);
+    console.log(`Cursor可执行文件: ${executablePath}`);
 
     // 检查可执行文件是否存在
     if (!fs.existsSync(executablePath)) {
-      throw new Error(`Kiro可执行文件不存在: ${executablePath}`);
+      throw new Error(`Cursor可执行文件不存在: ${executablePath}`);
     }
 
     const { spawn } = require('child_process');
@@ -2479,62 +2565,63 @@ ipcMain.handle('launch-Kiro', async (event, workspacePath = null) => {
 
     if (process.platform === 'win32') {
       // Windows
-      const KiroProcess = spawn(executablePath, launchArgs, {
+      const cursorProcess = spawn(executablePath, launchArgs, {
         detached: true,
         stdio: 'ignore'
       });
-      KiroProcess.unref();
+      cursorProcess.unref();
     } else if (process.platform === 'darwin') {
       // macOS - 使用open命令启动.app
       const openArgs = ['-a', executablePath];
       if (launchArgs.length > 0) {
         openArgs.push('--args', ...launchArgs);
       }
-      const KiroProcess = spawn('open', openArgs, {
+      const cursorProcess = spawn('open', openArgs, {
         detached: true,
         stdio: 'ignore'
       });
-      KiroProcess.unref();
+      cursorProcess.unref();
     } else {
       // Linux
-      const KiroProcess = spawn(executablePath, launchArgs, {
+      const cursorProcess = spawn(executablePath, launchArgs, {
         detached: true,
         stdio: 'ignore'
       });
-      KiroProcess.unref();
+      cursorProcess.unref();
     }
 
-    console.log('✓ Kiro启动成功');
-    return { success: true, message: 'Kiro启动成功', workspace: workspacePath };
+    console.log('✓ Cursor启动成功');
+    return { success: true, message: 'Cursor启动成功', workspace: workspacePath };
 
   } catch (error) {
-    console.error('✗ 启动Kiro失败:', error);
+    console.error('✗ 启动Cursor失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-// 探索Kiro配置结构函数已移除
+// 探索Cursor配置结构函数已移除
 
-// 检查Kiro数据库中的模型设置函数已移除
+// 检查Cursor数据库中的模型设置函数已移除
 
-// 设置Kiro默认AI模型 (改进版)
-ipcMain.handle('set-Kiro-default-model', async (event, model = 'claude-3.5-sonnet') => {
+// 设置Cursor默认AI模型 (改进版)
+ipcMain.handle('set-cursor-default-model', async (event, model = 'claude-3.5-sonnet') => {
   try {
-    console.log(`正在设置Kiro默认AI模型为: ${model}`);
+    console.log(`正在设置Cursor默认AI模型为: ${model}`);
 
     const results = {
-      settingsFile: { attempted: false, success: false, path: '', error: null }
+      settingsFile: { attempted: false, success: false, path: '', error: null },
+      database: { attempted: false, success: false, path: '', error: null, updatedKeys: [] }
     };
 
     // 方法1: 尝试修改settings.json文件
     try {
       let settingsPath = '';
       if (process.platform === 'win32') {
-        settingsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Kiro', 'User', 'settings.json');
+        settingsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Cursor', 'User', 'settings.json');
       } else if (process.platform === 'darwin') {
-        settingsPath = path.join(os.homedir(), 'Library', 'Application Support', 'Kiro', 'User', 'settings.json');
+        settingsPath = path.join(os.homedir(), 'Library', 'Application Support', 'Cursor', 'User', 'settings.json');
       } else {
-        settingsPath = path.join(os.homedir(), '.config', 'Kiro', 'User', 'settings.json');
+        settingsPath = path.join(os.homedir(), '.config', 'Cursor', 'User', 'settings.json');
       }
 
       results.settingsFile.attempted = true;
@@ -2550,30 +2637,30 @@ ipcMain.handle('set-Kiro-default-model', async (event, model = 'claude-3.5-sonne
       }
 
       // 读取现有设置
-      let KiroSettings = {};
+      let cursorSettings = {};
       if (fs.existsSync(settingsPath)) {
         try {
           const settingsContent = fs.readFileSync(settingsPath, 'utf8');
-          KiroSettings = JSON.parse(settingsContent);
+          cursorSettings = JSON.parse(settingsContent);
           console.log('已读取现有设置文件');
         } catch (parseError) {
           console.warn('解析现有设置失败，将创建新设置:', parseError.message);
-          KiroSettings = {};
+          cursorSettings = {};
         }
       }
 
       // 设置默认AI模型的多种可能键名
       const modelKeys = [
-        'Kiro.chat.defaultModel',
-        'Kiro.general.defaultModel',
-        'Kiro.defaultModel',
+        'cursor.chat.defaultModel',
+        'cursor.general.defaultModel',
+        'cursor.defaultModel',
         'chat.defaultModel',
         'ai.defaultModel',
         'workbench.chat.defaultModel'
       ];
 
       for (const key of modelKeys) {
-        KiroSettings[key] = model;
+        cursorSettings[key] = model;
       }
 
       // 创建备份
@@ -2584,7 +2671,7 @@ ipcMain.handle('set-Kiro-default-model', async (event, model = 'claude-3.5-sonne
       }
 
       // 写入新设置
-      fs.writeFileSync(settingsPath, JSON.stringify(KiroSettings, null, 2), 'utf8');
+      fs.writeFileSync(settingsPath, JSON.stringify(cursorSettings, null, 2), 'utf8');
       console.log(`已成功修改设置文件，设置模型为: ${model}`);
 
       results.settingsFile.success = true;
@@ -2594,8 +2681,101 @@ ipcMain.handle('set-Kiro-default-model', async (event, model = 'claude-3.5-sonne
       results.settingsFile.error = settingsError.message;
     }
 
-    // 判断整体成功状态（仅基于settings.json修改结果）
-    const overallSuccess = results.settingsFile.success;
+    // 方法2: 尝试修改数据库
+    try {
+      let dbPath = '';
+      if (process.platform === 'win32') {
+        dbPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Cursor', 'User', 'globalStorage', 'state.vscdb');
+      } else if (process.platform === 'darwin') {
+        dbPath = path.join(os.homedir(), 'Library', 'Application Support', 'Cursor', 'User', 'globalStorage', 'state.vscdb');
+      } else {
+        dbPath = path.join(os.homedir(), '.config', 'Cursor', 'User', 'globalStorage', 'state.vscdb');
+      }
+
+      results.database.attempted = true;
+      results.database.path = dbPath;
+
+      if (fs.existsSync(dbPath) && Database) {
+        console.log(`尝试修改数据库: ${dbPath}`);
+
+        const dbResult = (() => {
+          try {
+            const db = new Database(dbPath);
+
+            // 检查表是否存在
+            const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
+            if (!tableCheck) {
+              db.close();
+              return { success: false, error: 'ItemTable表不存在' };
+            }
+
+            // 尝试设置多种可能的模型键
+            const modelKeys = [
+              'cursor.chat.defaultModel',
+              'cursor.general.defaultModel',
+              'cursor.defaultModel',
+              'chat.defaultModel',
+              'ai.defaultModel',
+              'workbench.chat.defaultModel',
+              'vscode.chat.defaultModel'
+            ];
+
+            const updatedKeys = [];
+            const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
+            const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
+            const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
+
+            // 开始事务
+            const transaction = db.transaction(() => {
+              for (const key of modelKeys) {
+                try {
+                  const row = countStmt.get(key);
+
+                  if (row && row.count > 0) {
+                    // 更新现有键
+                    updateStmt.run(model, key);
+                    updatedKeys.push(key);
+                    console.log(`更新键${key} -> ${model}`);
+                  } else {
+                    // 插入新键
+                    insertStmt.run(key, model);
+                    updatedKeys.push(key);
+                    console.log(`插入键${key} -> ${model}`);
+                  }
+                } catch (err) {
+                  console.error(`处理键${key}失败:`, err);
+                }
+              }
+            });
+
+            transaction();
+            db.close();
+
+            return {
+              success: true,
+              updatedKeys,
+              message: `数据库更新成功，更新了${updatedKeys.length}个键`
+            };
+          } catch (error) {
+            return { success: false, error: `数据库操作失败: ${error.message}` };
+          }
+        })();
+
+        results.database.success = dbResult.success;
+        results.database.error = dbResult.error;
+        results.database.updatedKeys = dbResult.updatedKeys || [];
+
+      } else {
+        results.database.error = '数据库文件不存在或better-sqlite3模块未加载';
+      }
+
+    } catch (dbError) {
+      console.error('修改数据库失败:', dbError);
+      results.database.error = dbError.message;
+    }
+
+    // 判断整体成功状态
+    const overallSuccess = results.settingsFile.success || results.database.success;
 
     return {
       success: overallSuccess,
@@ -2610,150 +2790,273 @@ ipcMain.handle('set-Kiro-default-model', async (event, model = 'claude-3.5-sonne
   }
 });
 
-// 重启Kiro
-ipcMain.handle('restart-Kiro', async (event, KiroPath) => {
+// 重启Cursor
+ipcMain.handle('restart-cursor', async (event, cursorPath) => {
   try {
-    // 获取Kiro可执行文件路径
+    // 获取Cursor可执行文件路径
     let executablePath;
 
     if (process.platform === 'win32') {
-      executablePath = path.join(KiroPath, 'Kiro.exe');
+      executablePath = path.join(cursorPath, 'Cursor.exe');
 
-      // 先关闭现有的Kiro进程
+      // 先关闭现有的Cursor进程
       const { exec } = require('child_process');
-      exec('taskkill /F /IM Kiro.exe', (error) => {
+      exec('taskkill /F /IM Cursor.exe', (error) => {
         if (error) {
-          console.log('没有运行中的Kiro进程或无法关闭进程');
+          console.log('没有运行中的Cursor进程或无法关闭进程');
         } else {
-          console.log('成功关闭Kiro进程');
+          console.log('成功关闭Cursor进程');
         }
 
         // 延迟1秒后启动新进程
         setTimeout(() => {
-          // 启动Kiro进程
+          // 启动Cursor进程
           const { spawn } = require('child_process');
-          const KiroProcess = spawn(executablePath, [], {
+          const cursorProcess = spawn(executablePath, [], {
             detached: true,
             stdio: 'ignore'
           });
 
           // 分离进程
-          KiroProcess.unref();
-          console.log(`Kiro已重启: ${executablePath}`);
+          cursorProcess.unref();
+          console.log(`Cursor已重启: ${executablePath}`);
         }, 1000);
       });
     } else if (process.platform === 'darwin') {
-      executablePath = path.join(KiroPath, 'Contents', 'MacOS', 'Kiro');
+      executablePath = path.join(cursorPath, 'Contents', 'MacOS', 'Cursor');
 
-      // 先关闭现有的Kiro进程
+      // 先关闭现有的Cursor进程
       const { exec } = require('child_process');
-      exec('pkill -9 -f "Kiro.app"', (error) => {
+      exec('pkill -9 Cursor', (error) => {
         if (error) {
-          console.log('没有运行中的Kiro进程或无法关闭进程');
+          console.log('没有运行中的Cursor进程或无法关闭进程');
         } else {
-          console.log('成功关闭Kiro进程');
+          console.log('成功关闭Cursor进程');
         }
 
         // 延迟1秒后启动新进程
         setTimeout(() => {
-          // 启动Kiro进程
+          // 启动Cursor进程
           const { spawn } = require('child_process');
-          const KiroProcess = spawn('open', ['-a', executablePath], {
+          const cursorProcess = spawn('open', ['-a', executablePath], {
             detached: true,
             stdio: 'ignore'
           });
 
           // 分离进程
-          KiroProcess.unref();
-          console.log(`Kiro已重启: ${executablePath}`);
+          cursorProcess.unref();
+          console.log(`Cursor已重启: ${executablePath}`);
         }, 1000);
       });
     } else {
-      executablePath = path.join(KiroPath, 'Kiro');
+      executablePath = path.join(cursorPath, 'cursor');
 
-      // 先关闭现有的Kiro进程
+      // 先关闭现有的Cursor进程
       const { exec } = require('child_process');
-      exec('pkill -9 -f Kiro', (error) => {
+      exec('pkill -9 Cursor', (error) => {
         if (error) {
-          console.log('没有运行中的Kiro进程或无法关闭进程');
+          console.log('没有运行中的Cursor进程或无法关闭进程');
         } else {
-          console.log('成功关闭Kiro进程');
+          console.log('成功关闭Cursor进程');
         }
 
         // 延迟1秒后启动新进程
         setTimeout(() => {
-          // 启动Kiro进程
+          // 启动Cursor进程
           const { spawn } = require('child_process');
-          const KiroProcess = spawn(executablePath, [], {
+          const cursorProcess = spawn(executablePath, [], {
             detached: true,
             stdio: 'ignore'
           });
 
           // 分离进程
-          KiroProcess.unref();
-          console.log(`Kiro已重启: ${executablePath}`);
+          cursorProcess.unref();
+          console.log(`Cursor已重启: ${executablePath}`);
         }, 1000);
       });
     }
 
     return true;
   } catch (error) {
-    console.error(`重启Kiro失败: ${error.message}`);
+    console.error(`重启Cursor失败: ${error.message}`);
     return false;
   }
 });
 
-// 新的账号切换功能 - 使用 kiro-auth.js
-ipcMain.handle('windsurf-account-switch', async (event, email, refreshToken, clientId, clientSecret) => {
+// 退出当前Cursor登录账号
+ipcMain.handle('logout-current-cursor-account', async (event, dbPath) => {
+  try {
+    console.log('=== 开始退出当前Cursor登录账号 ===');
+    console.log(`数据库路径: ${dbPath}`);
+
+    if (!dbPath) {
+      return { success: false, error: '数据库路径不能为空' };
+    }
+
+    if (!fs.existsSync(dbPath)) {
+      return { success: false, error: `数据库文件不存在: ${dbPath}` };
+    }
+
+    // 确保better-sqlite3模块已加载
+    if (!Database) {
+      return { success: false, error: 'better-sqlite3模块未正确加载，请检查依赖安装' };
+    }
+
+    try {
+      // 连接数据库
+      console.log('正在连接数据库...');
+      const db = new Database(dbPath);
+      console.log('已成功连接到数据库');
+
+      // 检查表是否存在
+      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
+      if (!tableCheck) {
+        db.close();
+        return { success: false, error: 'ItemTable表不存在' };
+      }
+
+      // 要清除的认证相关键值
+      const keysToDelete = [
+        'cursorAuth/cachedEmail',
+        'cursorAuth/accessToken',
+        'cursorAuth/refreshToken',
+        'cursorAuth/cachedSignUpType',
+        'cursorai/featureStatusCache',
+        'cursorai/featureConfigCache',
+        'cursorAuth/stripeMembershipType',
+        'cursorai/serverConfig',
+        'auth/user',
+        'auth/session',
+        'vscode.chat.access-token'
+      ];
+
+      const deletedKeys = [];
+      const deleteStmt = db.prepare("DELETE FROM ItemTable WHERE key = ?");
+
+      // 开始事务
+      const transaction = db.transaction(() => {
+        for (const key of keysToDelete) {
+          try {
+            const result = deleteStmt.run(key);
+            if (result.changes > 0) {
+              deletedKeys.push(key);
+              console.log(`已删除登录信息键: ${key}`);
+            }
+          } catch (err) {
+            console.warn(`删除键${key}失败:`, err);
+          }
+        }
+      });
+
+      transaction();
+      db.close();
+
+      console.log(`退出登录完成，共清除${deletedKeys.length}个登录信息键`);
+
+      return {
+        success: true,
+        message: '成功退出当前登录账号',
+        deletedKeys
+      };
+    } catch (error) {
+      console.error('数据库操作失败:', error);
+      return { success: false, error: `数据库操作失败: ${error.message}` };
+    }
+  } catch (error) {
+    console.error('退出登录失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 基于Python项目逻辑的账号切换功能
+ipcMain.handle('python-style-account-switch', async (event, dbPath, email, access_token, refresh_token) => {
   try {
     console.log('========================================');
-    console.log('=== Kiro 账号切换开始 ===');
+    console.log('=== Python风格账号切换开始 ===');
     console.log('========================================');
-    console.log(`邮箱: ${email}`);
-    console.log(`Refresh Token: ${refreshToken ? refreshToken.substring(0, 30) + '...' : '无'}`);
-    console.log(`Client ID: ${clientId ? clientId.substring(0, 20) + '...' : '无'}`);
+    console.log(`数据库路径: ${dbPath}`);
+    console.log(`用户邮箱: ${email}`);
+    console.log(`access_token长度: ${access_token ? access_token.length : 0}`);
+    console.log(`refresh_token长度: ${refresh_token ? refresh_token.length : 0}`);
 
-    // ========== 步骤1：重置机器ID（重要：每次刷新Kiro时都要重置机器码）==========
+    // 参数验证
+    if (!dbPath) {
+      return { success: false, error: '数据库路径不能为空' };
+    }
+
+    if (!email) {
+      return { success: false, error: '邮箱不能为空' };
+    }
+
+    if (!access_token) {
+      return { success: false, error: 'access_token不能为空' };
+    }
+
+    if (!refresh_token) {
+      return { success: false, error: 'refresh_token不能为空' };
+    }
+
+    if (!fs.existsSync(dbPath)) {
+      return { success: false, error: `数据库文件不存在: ${dbPath}` };
+    }
+
+    // 确保better-sqlite3模块已加载
+    if (!Database) {
+      return { success: false, error: 'better-sqlite3模块未正确加载，请检查依赖安装' };
+    }
+
+    // 创建数据库备份
+    const backupPath = `${dbPath}.bak`;
+    if (!fs.existsSync(backupPath)) {
+      try {
+        fs.copyFileSync(dbPath, backupPath);
+        console.log(`已创建数据库备份: ${backupPath}`);
+      } catch (backupError) {
+        console.warn(`创建备份失败，但将继续执行: ${backupError.message}`);
+      }
+    }
+
+    // ========== 子步骤1：重置机器ID（重要：每次刷新Cursor时都要重置机器码）==========
     try {
       console.log('');
-      console.log('---------- 步骤1：重置机器ID ----------');
+      console.log('---------- 子步骤1：重置机器ID ----------');
       console.log('开始重置机器ID...');
 
-      // 获取正确的Kiro目录路径（支持自定义路径）
-      let windsurfDir;
+      // 获取正确的Cursor目录路径（支持自定义路径）
+      let cursorDir;
 
       // 首先尝试从设置中获取自定义路径
       try {
         const settings = loadSettings();
         console.log('加载设置:', settings);
-        if (settings && settings.customKiroPath && fs.existsSync(settings.customKiroPath)) {
-          windsurfDir = settings.customKiroPath;
-          console.log(`✓ 使用自定义Kiro路径: ${windsurfDir}`);
+        if (settings && settings.customCursorPath && fs.existsSync(settings.customCursorPath)) {
+          cursorDir = settings.customCursorPath;
+          console.log(`✓ 使用自定义Cursor路径: ${cursorDir}`);
         } else {
           // 使用默认路径
           if (process.platform === 'win32') {
-            windsurfDir = path.join(process.env.APPDATA, 'Kiro');
+            cursorDir = path.join(process.env.APPDATA, 'Cursor');
           } else if (process.platform === 'darwin') {
-            windsurfDir = path.join(process.env.HOME, 'Library', 'Application Support', 'Kiro');
+            cursorDir = path.join(process.env.HOME, 'Library', 'Application Support', 'Cursor');
           } else {
-            windsurfDir = path.join(process.env.HOME, '.config', 'Kiro');
+            cursorDir = path.join(process.env.HOME, '.config', 'Cursor');
           }
-          console.log(`✓ 使用默认Kiro路径: ${windsurfDir}`);
+          console.log(`✓ 使用默认Cursor路径: ${cursorDir}`);
         }
       } catch (settingsError) {
         console.warn(`⚠ 读取设置失败，使用默认路径: ${settingsError.message}`);
         // 使用默认路径
         if (process.platform === 'win32') {
-          windsurfDir = path.join(process.env.APPDATA, 'Kiro');
+          cursorDir = path.join(process.env.APPDATA, 'Cursor');
         } else if (process.platform === 'darwin') {
-          windsurfDir = path.join(process.env.HOME, 'Library', 'Application Support', 'Kiro');
+          cursorDir = path.join(process.env.HOME, 'Library', 'Application Support', 'Cursor');
         } else {
-          windsurfDir = path.join(process.env.HOME, '.config', 'Kiro');
+          cursorDir = path.join(process.env.HOME, '.config', 'Cursor');
         }
-        console.log(`✓ 使用默认Kiro路径: ${windsurfDir}`);
+        console.log(`✓ 使用默认Cursor路径: ${cursorDir}`);
       }
 
-      console.log(`Kiro目录路径: ${windsurfDir}`);
+      console.log(`Cursor目录路径: ${cursorDir}`);
 
       // 1.1 重置storage.json中的机器码（重要：按照用户要求的格式）
       console.log('正在重置storage.json中的机器码...');
@@ -2770,8 +3073,25 @@ ipcMain.handle('windsurf-account-switch', async (event, email, refreshToken, cli
       }
 
       // 1.2 同时保留原有的机器ID文件重置（兼容性）
-      await resetMachineIds(windsurfDir);
+      await resetMachineIds(cursorDir);
       console.log('✓ 机器ID文件重置成功');
+
+      // 1.3 重置Windows注册表中的MachineGuid（仅在Windows平台）
+      if (process.platform === 'win32') {
+        console.log('正在重置Windows注册表MachineGuid...');
+        try {
+          const registryResult = await resetMachineGuid();
+          if (registryResult.success) {
+            console.log(`✓ 注册表MachineGuid重置成功: ${registryResult.oldValue} -> ${registryResult.newValue}`);
+          } else {
+            console.warn(`⚠ 注册表MachineGuid重置失败: ${registryResult.error}`);
+          }
+        } catch (registryError) {
+          console.warn(`⚠ 注册表重置过程中出错: ${registryError.message}`);
+        }
+      } else {
+        console.log('非Windows平台，跳过注册表重置');
+      }
 
       console.log('✓ 机器ID重置完成');
     } catch (resetError) {
@@ -2779,45 +3099,202 @@ ipcMain.handle('windsurf-account-switch', async (event, email, refreshToken, cli
       // 不中断流程，继续执行
     }
 
-    // ========== 步骤2：执行账号切换 ==========
-    console.log('');
-    console.log('---------- 步骤2：执行账号切换 ----------');
+    try {
+      // ========== 子步骤2：更新数据库认证信息 ==========
+      console.log('');
+      console.log('---------- 子步骤2：更新数据库认证信息 ----------');
+      console.log('正在连接数据库...');
+      const db = new Database(dbPath);
+      console.log('✓ 已成功连接到数据库');
 
-    // 引入 kiro-auth 模块
-    const { switchAccount } = require('./kiro-auth');
+      // 检查表是否存在
+      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
+      if (!tableCheck) {
+        db.close();
+        return { success: false, error: 'ItemTable表不存在' };
+      }
 
-    // 调用 switchAccount 完成所有操作（传递独立参数）
-    const result = await switchAccount(email, refreshToken, clientId, clientSecret);
+      // 注意：serverConfig等登录信息的清理已经在logout-current-cursor-account中完成
 
-    if (result.success) {
+      // 设置要更新的键值对（基于Python项目的逻辑）
+      const updates = [];
+      if (email) {
+        updates.push(["cursorAuth/cachedEmail", email]);
+      }
+      if (access_token) {
+        updates.push(["cursorAuth/accessToken", access_token]);
+      }
+      if (refresh_token) {
+        updates.push(["cursorAuth/refreshToken", refresh_token]);
+        updates.push(["cursorAuth/cachedSignUpType", "Auth_0"]);
+      }
+
+      const updatedKeys = [];
+      const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
+      const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
+      const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
+
+      // 开始事务
+      const transaction = db.transaction(() => {
+        for (const [key, value] of updates) {
+          try {
+            const row = countStmt.get(key);
+
+            if (row && row.count > 0) {
+              updateStmt.run(value, key);
+              updatedKeys.push(key);
+              console.log(`✓ 更新键${key} -> ${value}`);
+            } else {
+              insertStmt.run(key, value);
+              updatedKeys.push(key);
+              console.log(`✓ 插入键${key} -> ${value}`);
+            }
+          } catch (err) {
+            console.error(`✗ 处理键${key}失败:`, err);
+            throw err; // 让事务回滚
+          }
+        }
+      });
+
+      transaction();
+      db.close();
+
+      console.log('✓ 数据库更新完成');
       console.log('========================================');
-      console.log('=== Kiro 账号切换成功 ===');
-      console.log(`邮箱: ${result.email}`);
-      console.log(`Access Token: ${result.accessToken ? result.accessToken.substring(0, 50) + '...' : '无'}`);
-      console.log(`过期时间: ${result.expiresAt}`);
+      console.log('=== Python风格账号切换完成 ===');
       console.log('========================================');
 
       return {
         success: true,
-        message: 'Kiro 账号切换成功',
-        email: result.email,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        expiresAt: result.expiresAt
+        message: 'Python风格账号切换成功',
+        updatedKeys,
+        activationSuccess: true
       };
-    } else {
-      console.error('✗ 账号切换失败:', result.message);
-      return {
-        success: false,
-        error: result.message
-      };
+    } catch (error) {
+      console.error('✗ 数据库操作失败:', error);
+      return { success: false, error: `数据库操作失败: ${error.message}` };
     }
   } catch (error) {
-    console.error('✗ Kiro 账号切换失败:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    console.error('✗ Python风格账号切换失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// 更新Cursor的认证信息
+ipcMain.handle('update-cursor-auth', async (event, dbPath, email, access_token, refresh_token, machineIdReset = true) => {
+  try {
+    if (!fs.existsSync(dbPath)) {
+      return { success: false, error: '数据库文件不存在' };
+    }
+
+    console.log('正在更新Cursor认证信息...');
+    console.log(`数据库路径: ${dbPath}`);
+    console.log(`用户邮箱: ${email}`);
+
+    // 确保better-sqlite3模块已加载
+    if (!Database) {
+      return { success: false, error: 'better-sqlite3模块未正确加载' };
+    }
+
+    // 创建数据库备份
+    const backupPath = `${dbPath}.bak`;
+    if (!fs.existsSync(backupPath)) {
+      try {
+        fs.copyFileSync(dbPath, backupPath);
+        console.log(`已创建数据库备份: ${backupPath}`);
+      } catch (backupError) {
+        console.warn(`创建备份失败，但将继续执行: ${backupError.message}`);
+        // 不中断流程，继续执行
+      }
+    }
+
+    // 重置机器ID部分
+    if (machineIdReset) {
+      try {
+        console.log('开始重置机器ID...');
+        await resetMachineIds(path.dirname(path.dirname(dbPath)));
+      } catch (resetError) {
+        console.warn(`重置机器ID过程中出错: ${resetError.message}`);
+        // 不中断流程，继续执行
+      }
+    }
+
+    try {
+      // 连接数据库
+      const db = new Database(dbPath);
+      console.log('已连接到数据库');
+
+      // 检查表是否存在
+      const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ItemTable'").get();
+      if (!tableCheck) {
+        db.close();
+        return { success: false, error: 'ItemTable表不存在' };
+      }
+
+      // 设置要更新的键值对
+      const updates = [];
+      if (email) {
+        updates.push(["cursorAuth/cachedEmail", email]);
+      }
+      if (access_token) {
+        updates.push(["cursorAuth/accessToken", access_token]);
+      }
+      if (refresh_token) {
+        updates.push(["cursorAuth/refreshToken", refresh_token]);
+        updates.push(["cursorAuth/cachedSignUpType", "Auth_0"]);
+      }
+
+      // 首先尝试删除serverConfig配置，这是激活新账号所必需的
+      try {
+        const deleteStmt = db.prepare("DELETE FROM ItemTable WHERE key = ?");
+        deleteStmt.run("cursorai/serverConfig");
+        console.log('尝试删除cursorai/serverConfig，准备激活新账号');
+      } catch (err) {
+        console.log('删除cursorai/serverConfig失败或记录不存在，继续执行');
+      }
+
+      const updatedKeys = [];
+      const countStmt = db.prepare("SELECT COUNT(*) as count FROM ItemTable WHERE key = ?");
+      const updateStmt = db.prepare("UPDATE ItemTable SET value = ? WHERE key = ?");
+      const insertStmt = db.prepare("INSERT INTO ItemTable (key, value) VALUES (?, ?)");
+
+      // 开始事务
+      const transaction = db.transaction(() => {
+        for (const [key, value] of updates) {
+          try {
+            const row = countStmt.get(key);
+
+            if (row && row.count > 0) {
+              updateStmt.run(value, key);
+              updatedKeys.push(key);
+              console.log(`更新键${key} -> ${value}`);
+            } else {
+              insertStmt.run(key, value);
+              updatedKeys.push(key);
+              console.log(`插入键${key} -> ${value}`);
+            }
+          } catch (err) {
+            console.error(`处理键${key}失败:`, err);
+            throw err; // 让事务回滚
+          }
+        }
+      });
+
+      transaction();
+      db.close();
+
+      return {
+        success: true,
+        message: '认证信息更新成功',
+        updatedKeys
+      };
+    } catch (error) {
+      console.error('数据库操作失败:', error);
+      return { success: false, error: `数据库操作失败: ${error.message}` };
+    }
+  } catch (error) {
+    console.error('更新认证信息失败:', error);
+    return { success: false, error: error.message };
   }
 });
 
@@ -2834,18 +3311,18 @@ async function resetStorageMachineIds() {
     if (process.platform === 'win32') {
       // Windows
       const appData = process.env.APPDATA;
-      storageFilePath = path.join(appData, 'Kiro', 'User', 'globalStorage', 'storage.json');
-      backupDir = path.join(appData, 'Kiro', 'User', 'globalStorage', 'backups');
+      storageFilePath = path.join(appData, 'Cursor', 'User', 'globalStorage', 'storage.json');
+      backupDir = path.join(appData, 'Cursor', 'User', 'globalStorage', 'backups');
     } else if (process.platform === 'darwin') {
       // macOS
       const appSupport = path.join(os.homedir(), 'Library', 'Application Support');
-      storageFilePath = path.join(appSupport, 'Kiro', 'User', 'globalStorage', 'storage.json');
-      backupDir = path.join(appSupport, 'Kiro', 'User', 'globalStorage', 'backups');
+      storageFilePath = path.join(appSupport, 'Cursor', 'User', 'globalStorage', 'storage.json');
+      backupDir = path.join(appSupport, 'Cursor', 'User', 'globalStorage', 'backups');
     } else {
       // Linux
       const configDir = path.join(os.homedir(), '.config');
-      storageFilePath = path.join(configDir, 'Kiro', 'User', 'globalStorage', 'storage.json');
-      backupDir = path.join(configDir, 'Kiro', 'User', 'globalStorage', 'backups');
+      storageFilePath = path.join(configDir, 'Cursor', 'User', 'globalStorage', 'storage.json');
+      backupDir = path.join(configDir, 'Cursor', 'User', 'globalStorage', 'backups');
     }
 
     console.log('重置机器码 - 目标文件:', storageFilePath);
@@ -2854,7 +3331,7 @@ async function resetStorageMachineIds() {
     if (!fs.existsSync(storageFilePath)) {
       return {
         success: false,
-        error: `未找到配置文件: ${storageFilePath}。请先运行一次Kiro后再使用此功能。`
+        error: `未找到配置文件: ${storageFilePath}。请先运行一次Cursor后再使用此功能。`
       };
     }
 
@@ -2943,7 +3420,7 @@ async function resetStorageMachineIds() {
 }
 
 // 添加重置机器ID的函数
-async function resetMachineIds(windsurfDir) {
+async function resetMachineIds(cursorDir) {
   const { v4: uuidv4 } = require('uuid');
   const machineGuid = uuidv4();
   const deviceId = uuidv4();
@@ -2953,12 +3430,12 @@ async function resetMachineIds(windsurfDir) {
   console.log(`生成新的匿名ID: ${anonymousId}`);
 
   try {
-    // 更新所有Kiro的machine ID文件
+    // 更新所有Cursor的machine ID文件
     const machineIdFiles = [
-      path.join(windsurfDir, 'machineid.json'),
-      path.join(windsurfDir, 'machineid'),
-      path.join(windsurfDir, 'User', 'globalStorage', 'machine-id'),
-      path.join(windsurfDir, 'User', 'globalStorage', 'anonymousid')
+      path.join(cursorDir, 'machineid.json'),
+      path.join(cursorDir, 'machineid'),
+      path.join(cursorDir, 'User', 'globalStorage', 'machine-id'),
+      path.join(cursorDir, 'User', 'globalStorage', 'anonymousid')
     ];
 
     for (const filePath of machineIdFiles) {
@@ -3027,7 +3504,7 @@ ipcMain.handle('verify-card-only', async (event, cardCode) => {
     const machineId = generateMachineId();
 
     // 构建API请求参数
-    const apiUrl = 'http://139.199.225.37:8624/csk/card/verify'; // 使用验证接口，不更新数据库
+    const apiUrl = 'http://1.14.165.25:2486/csk/card/verify'; // 使用验证接口，不更新数据库
     const params = {
       card: cardCode,
       machine_id: machineId
@@ -3130,98 +3607,6 @@ ipcMain.handle('verify-card-only', async (event, cardCode) => {
   }
 });
 
-// 添加验证卡密的处理器（用于前端"校验授权码"按钮）
-ipcMain.handle('verify-card', async (event, cardCode) => {
-  try {
-    console.log(`验证卡密（前端校验按钮）: ${cardCode}`);
-
-    // 获取设备ID
-    const machineId = generateMachineId();
-
-    // 构建API请求参数
-    const apiUrl = 'http://139.199.225.37:8624/csk/card/verify'; // 使用验证接口，不更新数据库
-    const params = {
-      card: cardCode,
-      machine_id: machineId
-    };
-
-    // 开发模式代码已移除，始终使用真实API
-
-    // 发送API请求
-    try {
-      const response = await axios.post(apiUrl, {
-        cardCode: cardCode,
-        deviceId: machineId
-      });
-
-      // 检查API响应
-      if (response.status !== 200) {
-        return {
-          success: false,
-          error: `API请求失败: HTTP状态码 ${response.status}`
-        };
-      }
-
-      const data = response.data;
-
-      // 处理API响应
-      if (data.success === false) {
-        return {
-          success: false,
-          error: data.message || '卡密验证失败'
-        };
-      }
-
-      // 计算剩余天数
-      let remainingDays = 31;
-      if (data.endTime) {
-        const endDate = new Date(data.endTime);
-        const now = new Date();
-        const diffTime = endDate - now;
-        remainingDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      }
-
-      // 将SpringBoot后端返回的扁平数据结构转换为前端期望的格式
-      const cardInfo = {
-        card: data.cardCode || '',
-        address: data.cardType || '专用',
-        start: data.startTime || '',
-        end: data.endTime || '',
-        usetime: (data.useDays || 31).toString()
-      };
-
-      const accountInfo = {
-        userid: data.userId || '',
-        email: data.email || '',
-        pwd: data.pwd || '',
-        token: data.pwd || data.token || '',
-        current_time: new Date().toISOString().replace('T', ' ').substring(0, 19)
-      };
-
-      return {
-        success: data.success,
-        data: {
-          card_info: cardInfo,
-          account_info: accountInfo,
-          remaining_days: remainingDays
-        }
-      };
-    } catch (apiError) {
-      console.error('API请求失败:', apiError);
-      return {
-        success: false,
-        error: `API请求失败: ${apiError.message}`
-      };
-    }
-  } catch (error) {
-    console.error('验证卡密时出错:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-});
-
 // 保存卡密信息到JSON文件
 ipcMain.handle('save-card-info', async (event, cardInfo) => {
   return saveCardInfoToFile(cardInfo);
@@ -3278,19 +3663,95 @@ function generateMachineId() {
 }
 
 // 生成稳定的设备ID（备用方案）
-// 基于系统信息生成固定长度的 MD5 哈希
 function generateStableMachineId() {
-  const hostname = os.hostname();
-  const platform = os.platform();
-  const arch = os.arch();
-  const combined = `${hostname}-${platform}-${arch}`;
-  
-  // 使用 MD5 生成固定长度的 ID
-  const hash = crypto.createHash('md5').update(combined).digest('hex');
-  console.log('生成稳定设备ID:', hash);
-  console.log('基于:', combined);
-  
-  return hash;
+  const crypto = require('crypto');
+  const os = require('os');
+  const { execSync } = require('child_process');
+
+  try {
+    let uniqueIdentifiers = [];
+
+    // 方案1: 尝试获取主板序列号或CPU ID
+    if (process.platform === 'win32') {
+      try {
+        // Windows: 获取主板序列号
+        const motherboardSerial = execSync('wmic baseboard get serialnumber', { encoding: 'utf8' })
+          .split('\n')[1]?.trim();
+        if (motherboardSerial && motherboardSerial !== 'SerialNumber') {
+          uniqueIdentifiers.push(`mb:${motherboardSerial}`);
+        }
+
+        // Windows: 获取CPU ID
+        const cpuId = execSync('wmic cpu get processorid', { encoding: 'utf8' })
+          .split('\n')[1]?.trim();
+        if (cpuId && cpuId !== 'ProcessorId') {
+          uniqueIdentifiers.push(`cpu:${cpuId}`);
+        }
+      } catch (error) {
+        console.warn('获取Windows硬件信息失败:', error.message);
+      }
+    } else if (process.platform === 'darwin') {
+      try {
+        // macOS: 获取硬件UUID
+        const hwUuid = execSync('system_profiler SPHardwareDataType | grep "Hardware UUID"', { encoding: 'utf8' })
+          .split(':')[1]?.trim();
+        if (hwUuid) {
+          uniqueIdentifiers.push(`hw:${hwUuid}`);
+        }
+      } catch (error) {
+        console.warn('获取macOS硬件信息失败:', error.message);
+      }
+    } else {
+      try {
+        // Linux: 尝试获取DMI信息
+        const productUuid = execSync('cat /sys/class/dmi/id/product_uuid 2>/dev/null || echo ""', { encoding: 'utf8' }).trim();
+        if (productUuid) {
+          uniqueIdentifiers.push(`dmi:${productUuid}`);
+        }
+      } catch (error) {
+        console.warn('获取Linux硬件信息失败:', error.message);
+      }
+    }
+
+    // 方案2: 收集稳定的系统信息
+    const systemInfo = {
+      hostname: os.hostname(),
+      platform: os.platform(),
+      arch: os.arch(),
+      userDir: os.homedir(),
+      // 获取第一个有效的MAC地址
+      primaryMac: Object.values(os.networkInterfaces())
+        .flat()
+        .filter(iface => !iface.internal && iface.mac && iface.mac !== '00:00:00:00:00:00')
+        .sort((a, b) => a.mac.localeCompare(b.mac))[0]?.mac || 'no-mac'
+    };
+
+    // 组合所有标识符
+    const allIdentifiers = [
+      ...uniqueIdentifiers,
+      `sys:${JSON.stringify(systemInfo)}`
+    ].join('|');
+
+    // 生成稳定的哈希值
+    const hash = crypto.createHash('sha256').update(allIdentifiers).digest('hex');
+    const stableId = hash.substring(0, 32);
+
+    console.log('生成稳定设备ID:', stableId);
+    console.log('基于标识符:', uniqueIdentifiers.length > 0 ? uniqueIdentifiers : '系统信息');
+
+    return stableId;
+  } catch (error) {
+    console.error('生成稳定设备ID失败:', error);
+
+    // 最终备用方案：基于用户目录和主机名
+    const crypto = require('crypto');
+    const os = require('os');
+    const fallbackString = `${os.homedir()}|${os.hostname()}|${os.platform()}|${os.arch()}`;
+    const fallbackHash = crypto.createHash('sha256').update(fallbackString).digest('hex').substring(0, 32);
+
+    console.log('使用最终备用方案生成设备ID:', fallbackHash);
+    return fallbackHash;
+  }
 }
 
 // 卡密信息JSON文件管理
@@ -3371,16 +3832,16 @@ function clearCardInfoFile() {
 
 
 
-// 添加续杯卡密的处理器（会更新数据库并返回账号信息）
-ipcMain.handle('renew-card', async (event, cardCode) => {
+// 添加续杯卡密的处理器（会更新数据库）
+ipcMain.handle('verify-card', async (event, cardCode) => {
   try {
-    console.log(`续杯卡密（Kiro用）: ${cardCode}`);
+    console.log(`续杯卡密: ${cardCode}`);
 
     // 获取设备ID
     const machineId = generateMachineId();
 
     // 构建API请求参数
-    const apiUrl = 'http://139.199.225.37:8624/csk/card/renew'; // 使用续杯接口，会返回账号信息
+    const apiUrl = 'http://1.14.165.25:2486/csk/card/renew'; // 使用续杯接口，会更新数据库
     const params = {
       card: cardCode,
       machine_id: machineId
@@ -3434,10 +3895,7 @@ ipcMain.handle('renew-card', async (event, cardCode) => {
       const accountInfo = {
         userid: data.userId || '',
         email: data.email || '',
-        pwd: data.pwd || '',  // 密码字段（独立）
-        refreshToken: data.refreshToken || '',  // Kiro 认证信息
-        clientId: data.clientId || '',
-        clientSecret: data.clientSecret || '',
+        token: data.token || '',
         current_time: new Date().toISOString().replace('T', ' ').substring(0, 19)
       };
 
@@ -3501,7 +3959,7 @@ ipcMain.handle('get-card-info', async (event, cardCode) => {
     const machineId = generateMachineId();
 
     // 构建API请求参数
-    const apiUrl = `http://139.199.225.37:8624/csk/card/info/${cardCode}`; // 使用本地SpringBoot服务API地址
+    const apiUrl = `http://1.14.165.25:2486/csk/card/info/${cardCode}`; // 使用本地SpringBoot服务API地址
 
     // 开发模式代码已移除，始终使用真实API
 
@@ -3560,7 +4018,305 @@ ipcMain.handle('open-external-url', async (event, url) => {
   }
 });
 
+// 缓存settings.json路径，避免重复搜索
+let cachedSettingsPath = null;
 
+// 搜索Cursor settings.json文件
+function findCursorSettingsPath() {
+  // 如果已经缓存了路径，直接返回
+  if (cachedSettingsPath && fs.existsSync(cachedSettingsPath)) {
+    console.log(`使用缓存的settings.json路径: ${cachedSettingsPath}`);
+    return cachedSettingsPath;
+  }
+
+  console.log('开始全盘搜索Cursor settings.json文件...');
+
+  // 获取所有驱动器（Windows）
+  const drives = [];
+  if (process.platform === 'win32') {
+    // 扫描A-Z所有可能的驱动器
+    for (let i = 65; i <= 90; i++) {
+      const drive = String.fromCharCode(i) + ':';
+      try {
+        if (fs.existsSync(drive + '\\')) {
+          drives.push(drive);
+        }
+      } catch (e) {
+        // 跳过无法访问的驱动器
+      }
+    }
+  } else {
+    // Linux/Mac使用home目录
+    drives.push(os.homedir());
+  }
+
+  console.log(`找到可用驱动器: ${drives.join(', ')}`);
+
+  // 可能的路径模式
+  const possiblePaths = [];
+
+  // 1. 标准用户目录路径
+  if (process.platform === 'win32') {
+    for (const drive of drives) {
+      // 遍历Users下的所有用户目录
+      const usersDir = path.join(drive + '\\', 'Users');
+      if (fs.existsSync(usersDir)) {
+        try {
+          const userDirs = fs.readdirSync(usersDir);
+          for (const userDir of userDirs) {
+            possiblePaths.push(
+              path.join(usersDir, userDir, 'AppData', 'Roaming', 'Cursor', 'User', 'settings.json')
+            );
+          }
+        } catch (e) {
+          console.log(`无法访问 ${usersDir}: ${e.message}`);
+        }
+      }
+    }
+  } else {
+    // Linux/Mac路径
+    possiblePaths.push(
+      path.join(os.homedir(), '.config', 'Cursor', 'User', 'settings.json')
+    );
+  }
+
+  // 2. 当前用户目录（优先级最高）
+  if (process.platform === 'win32') {
+    possiblePaths.unshift(
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Cursor', 'User', 'settings.json')
+    );
+  }
+
+  console.log(`开始检查 ${possiblePaths.length} 个可能的路径...`);
+
+  // 搜索存在的settings.json
+  for (const settingsPath of possiblePaths) {
+    if (fs.existsSync(settingsPath)) {
+      console.log(`✓ 找到settings.json: ${settingsPath}`);
+      cachedSettingsPath = settingsPath;
+      return settingsPath;
+    }
+  }
+
+  console.log('✗ 未找到settings.json文件');
+  return null;
+}
+
+// 从后端API获取当前代理配置
+async function fetchCurrentProxyConfig() {
+  try {
+    const apiUrl = 'http://1.14.165.25:2486/csk/proxy-config/current';
+    console.log('从后端获取当前代理配置...');
+
+    const response = await axios.get(apiUrl, { timeout: 5000 });
+
+    if (response.data.success && response.data.data) {
+      console.log('成功获取代理配置');
+      return response.data.data;
+    } else {
+      console.warn('获取代理配置失败:', response.data.message);
+      return null;
+    }
+  } catch (error) {
+    console.error('获取代理配置出错:', error.message);
+    return null;
+  }
+}
+
+// 检查Cursor Settings.json当前状态
+ipcMain.handle('check-cursor-settings-status', async () => {
+  try {
+    console.log('检查Cursor settings.json当前状态...');
+
+    // 搜索settings.json文件
+    const settingsPath = findCursorSettingsPath();
+
+    if (!settingsPath) {
+      console.log('未找到settings.json文件');
+      return {
+        success: true,
+        enabled: false,
+        message: '未找到配置文件'
+      };
+    }
+
+    // 读取文件内容
+    const fileContent = fs.readFileSync(settingsPath, 'utf8');
+    const settings = JSON.parse(fileContent);
+
+    // 检查是否包含代理基础字段
+    if (!settings['http.proxy'] ||
+        !settings['http.proxySupport'] ||
+        !settings['cursor.general.disableHttp2']) {
+      console.log('settings.json中没有完整的代理配置');
+      return {
+        success: true,
+        enabled: false,
+        message: '未配置代理',
+        proxyUrl: null
+      };
+    }
+
+    const currentProxy = settings['http.proxy'];
+    console.log(`settings.json中的代理地址: ${currentProxy}`);
+
+    // 从数据库获取所有启用的代理地址
+    try {
+      const apiUrl = 'http://1.14.165.25:2486/csk/proxy-config/proxy-urls';
+      console.log('正在从数据库获取所有代理地址...');
+
+      const response = await axios.get(apiUrl, { timeout: 5000 });
+
+      if (response.data.success && response.data.data) {
+        const proxyUrls = response.data.data;
+        console.log(`数据库中有${proxyUrls.length}个启用的代理地址:`, proxyUrls);
+
+        // 检查当前代理是否在数据库列表中
+        const isInDatabase = proxyUrls.includes(currentProxy);
+
+        console.log(`当前代理${isInDatabase ? '在' : '不在'}数据库列表中`);
+
+        return {
+          success: true,
+          enabled: isInDatabase,
+          message: isInDatabase ? '代理已开启' : '当前代理不在数据库中，视为已关闭',
+          proxyUrl: isInDatabase ? currentProxy : null
+        };
+      } else {
+        console.warn('获取数据库代理列表失败，使用fallback逻辑');
+        // Fallback：如果API失败，只要有代理就认为是开启的
+        const hasProxy = settings['http.proxy'] &&
+                         settings['http.proxy'].length > 0 &&
+                         settings['http.proxySupport'] === 'override' &&
+                         settings['cursor.general.disableHttp2'] === true;
+
+        return {
+          success: true,
+          enabled: hasProxy,
+          message: hasProxy ? '代理已开启（未验证数据库）' : '代理已关闭',
+          proxyUrl: hasProxy ? settings['http.proxy'] : null
+        };
+      }
+    } catch (apiError) {
+      console.warn('无法连接到数据库API，使用fallback逻辑:', apiError.message);
+      // Fallback：如果API失败，只要有代理就认为是开启的
+      const hasProxy = settings['http.proxy'] &&
+                       settings['http.proxy'].length > 0 &&
+                       settings['http.proxySupport'] === 'override' &&
+                       settings['cursor.general.disableHttp2'] === true;
+
+      return {
+        success: true,
+        enabled: hasProxy,
+        message: hasProxy ? '代理已开启（未验证数据库）' : '代理已关闭',
+        proxyUrl: hasProxy ? settings['http.proxy'] : null
+      };
+    }
+  } catch (error) {
+    console.error('检查Cursor设置状态失败:', error);
+    return {
+      success: true,
+      enabled: false,
+      message: '检查失败，默认关闭'
+    };
+  }
+});
+
+// 更新Cursor Settings.json（突破地区限制）
+ipcMain.handle('update-cursor-settings', async (event, enabled) => {
+  try {
+    console.log(`更新Cursor设置: ${enabled ? '开启' : '关闭'}地区限制突破`);
+
+    // 搜索settings.json文件
+    const settingsPath = findCursorSettingsPath();
+
+    if (!settingsPath) {
+      console.error('未找到Cursor settings.json文件');
+      return {
+        success: false,
+        error: '未找到Cursor配置文件',
+        message: '请先打开Cursor进入首页，确保Cursor已正确初始化后再使用此功能'
+      };
+    }
+
+    console.log(`设置文件路径: ${settingsPath}`);
+
+    // 再次确认文件存在（双重检查）
+    if (!fs.existsSync(settingsPath)) {
+      console.error('settings.json文件不存在，无法修改');
+      return {
+        success: false,
+        error: '配置文件不存在',
+        message: '请先打开Cursor进入首页，确保Cursor已正确初始化后再使用此功能'
+      };
+    }
+
+    if (enabled) {
+      // ===== 开启地区限制：从后端获取配置并写入 =====
+      const proxyConfig = await fetchCurrentProxyConfig();
+      let settingsContent;
+
+      if (proxyConfig) {
+        // 使用从数据库获取的配置
+        settingsContent = proxyConfig;
+        console.log('使用数据库配置:', proxyConfig['http.proxy']);
+      } else {
+        // 如果获取失败，使用默认配置作为fallback
+        console.warn('无法从数据库获取配置，使用默认配置');
+        settingsContent = {
+          "database-client.autoSync": true,
+          "update.enableWindowsBackgroundUpdates": false,
+          "update.mode": "none",
+          "http.proxyAuthorization": null,
+          "json.schemas": [],
+          "window.commandCenter": true,
+          "http.proxy": "socks5://xc999:xc123@154.201.91.204:38999",
+          "http.systemCertificates": false,
+          "http.proxySupport": "override",
+          "http.experimental.systemCertificatesV2": false,
+          "http.experimental.systemCertificates": false,
+          "cursor.general.disableHttp2": true
+        };
+      }
+
+      // 写入新配置
+      fs.writeFileSync(settingsPath, JSON.stringify(settingsContent, null, 4), 'utf8');
+      console.log('✓ 已开启地区限制突破，代理配置已写入');
+
+      return {
+        success: true,
+        message: '已开启地区限制突破',
+        config: settingsContent['http.proxy'] || null
+      };
+    } else {
+      // ===== 关闭地区限制：使用固定的基础配置 =====
+      console.log('准备关闭地区限制突破，使用基础配置...');
+      
+      const basicSettings = {
+        "database-client.autoSync": true,
+        "update.enableWindowsBackgroundUpdates": false,
+        "update.mode": "none",
+        "http.proxyAuthorization": null,
+        "json.schemas": []
+      };
+      
+      fs.writeFileSync(settingsPath, JSON.stringify(basicSettings, null, 4), 'utf8');
+      console.log('✓ 已写入基础配置');
+      
+      return {
+        success: true,
+        message: '已关闭地区限制突破',
+        config: null
+      };
+    }
+  } catch (error) {
+    console.error('更新Cursor设置失败:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
 
 // 窗口控制事件
 ipcMain.on('minimize-window', () => {

@@ -1,5 +1,31 @@
+const regedit = require('regedit');
 const { v4: uuidv4 } = require('uuid');
-const { execSync } = require('child_process');
+const path = require('path');
+
+// 尝试导入electron的app模块，如果不在electron环境中则为undefined
+let app;
+try {
+  const electron = require('electron');
+  app = electron.app;
+} catch (error) {
+  // 不在Electron环境中，app为undefined
+  app = undefined;
+}
+
+// 配置 regedit 在打包环境中的工作目录
+if (app && app.isPackaged) {
+  // 设置 VBS 脚本的外部路径（在 asarUnpack 目录中）
+  const vbsDirectory = path.join(
+    process.resourcesPath,
+    'app.asar.unpacked',
+    'node_modules',
+    'regedit',
+    'vbs'
+  );
+  regedit.setExternalVBSLocation(vbsDirectory);
+}
+
+const pmsRegedit = regedit.promisified;
 const REGISTRY_PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography';
 
 /**
@@ -9,27 +35,26 @@ const REGISTRY_PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography';
 async function getMachineGuid() {
   try {
     console.log('正在读取注册表MachineGuid...');
+    const result = await pmsRegedit.list([REGISTRY_PATH]);
     
-    // 使用 reg query 命令读取注册表
-    const command = `reg query "${REGISTRY_PATH}" /v MachineGuid`;
-    const output = execSync(command, { encoding: 'utf8' });
-    
-    // 解析输出，格式类似：
-    // MachineGuid    REG_SZ    {GUID}
-    const match = output.match(/MachineGuid\s+REG_SZ\s+(.+)/);
-    if (!match || !match[1]) {
-      throw new Error('无法解析 MachineGuid 值');
+    if (!result || !result[REGISTRY_PATH]) {
+      throw new Error('注册表路径不存在或无法访问');
     }
     
-    const machineGuid = match[1].trim();
+    const values = result[REGISTRY_PATH].values;
+    if (!values || !values['MachineGuid']) {
+      throw new Error('MachineGuid 值不存在');
+    }
+    
+    const machineGuid = values['MachineGuid'].value;
     console.log(`当前注册表MachineGuid: ${machineGuid}`);
     return machineGuid;
   } catch (error) {
-    if (error.message && error.message.includes('拒绝访问')) {
-      console.error('[ERROR] 读取注册表失败: 请以管理员身份运行');
-      return null;
-    }
-    console.error('[ERROR] 读取注册表MachineGuid失败:', error.message);
+    console.error('读取注册表MachineGuid失败:', {
+      error: error.message,
+      isPackaged: app ? app.isPackaged : false,
+      resourcesPath: (app && app.isPackaged) ? process.resourcesPath : 'development'
+    });
     return null;
   }
 }
@@ -43,18 +68,23 @@ async function setMachineGuid() {
     const newValue = uuidv4();
     console.log(`正在设置新的注册表MachineGuid: ${newValue}`);
     
-    // 使用 reg add 命令写入注册表（需要管理员权限）
-    const command = `reg add "${REGISTRY_PATH}" /v MachineGuid /t REG_SZ /d "${newValue}" /f`;
-    execSync(command, { encoding: 'utf8' });
+    await pmsRegedit.putValue({
+      [REGISTRY_PATH]: {
+        MachineGuid: {
+          value: newValue,
+          type: 'REG_SZ'
+        }
+      }
+    });
     
-    console.log('✓ 注册表MachineGuid设置成功');
+    console.log('注册表MachineGuid设置成功');
     return newValue;
   } catch (error) {
-    if (error.message && error.message.includes('拒绝访问')) {
-      console.error('[ERROR] 写入注册表失败: 请以管理员身份运行');
-      return null;
-    }
-    console.error('[ERROR] 写入注册表MachineGuid失败:', error.message);
+    console.error('写入注册表MachineGuid失败:', {
+      error: error.message,
+      isPackaged: app ? app.isPackaged : false,
+      resourcesPath: (app && app.isPackaged) ? process.resourcesPath : 'development'
+    });
     return null;
   }
 }
@@ -68,30 +98,27 @@ async function resetMachineGuid() {
   try {
     console.log('开始重置注册表MachineGuid...');
     
-    // 先读取当前值（可选，失败不影响设置新值）
+    // 先读取当前值
     const oldValue = await getMachineGuid();
     
     // 设置新值
     const newValue = await setMachineGuid();
     
     if (newValue) {
-      console.log(`✓ 注册表MachineGuid重置成功: ${oldValue || '未知'} -> ${newValue}`);
+      console.log(`注册表MachineGuid重置成功: ${oldValue} -> ${newValue}`);
       return {
         success: true,
         oldValue: oldValue || '未知',
         newValue: newValue
       };
     } else {
-      // 如果设置失败，检查是否是权限问题
-      throw new Error('请以管理员身份运行程序');
+      throw new Error('设置新的MachineGuid失败');
     }
   } catch (error) {
-    const errorMsg = error.message || '未知错误';
-    console.error('[ERROR] 重置注册表MachineGuid失败:', errorMsg);
-    
+    console.error('重置注册表MachineGuid失败:', error.message);
     return {
       success: false,
-      error: errorMsg.includes('管理员') ? '请以管理员身份运行程序' : errorMsg
+      error: error.message
     };
   }
 }

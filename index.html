@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kiro续杯工具</title>
+  <title>Cursor续杯工具</title>
   <script>
     // 检查是否为生产环境并加载对应的CSS
     if (process.env.NODE_ENV === 'production' || window.process?.env?.NODE_ENV === 'production') {
@@ -42,85 +42,72 @@
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
-      color: #f1f5f9;
+      background:
+        linear-gradient(135deg, #0560ef 0%, #0961e4 25%, #0e62e3 50%, #0552c6 75%, #1976d2 100%),
+        radial-gradient(circle at 30% 20%, rgba(33, 150, 243, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 70% 80%, rgba(63, 81, 181, 0.15) 0%, transparent 60%),
+        radial-gradient(circle at 20% 60%, rgba(0, 188, 212, 0.08) 0%, transparent 50%);
+      color: #2c3e50;
       overflow: hidden;
       height: 100vh;
       position: relative;
-    }
-    /* 添加背景光晕效果 */
-    body::before {
-      content: '';
-      position: absolute;
-      top: -20%;
-      left: 20%;
-      width: 60%;
-      height: 60%;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
-      pointer-events: none;
-      z-index: 0;
     }
     #app {
       height: 100vh;
       display: flex;
       flex-direction: column;
-      padding: 16px; /* 减小外边距 */
+      padding: 20px;
       box-sizing: border-box;
       position: relative;
       z-index: 1;
-      margin-top: 30px;
-      height: calc(100vh - 30px);
-      overflow: hidden; /* 禁止应用级滚动 */
     }
-    /* 移除所有过渡动画 */
-    * {
-      transition: none !important;
-      transform: none !important;
-      animation: none !important;
-    }
-    
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 16px;
-      padding: 16px 24px;
-      background: rgba(30, 41, 59, 0.75); /* 稍微加深与下方区分 */
-      backdrop-filter: blur(20px);
+      margin-bottom: 24px;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, rgba(33, 150, 243, 0.9) 0%, rgba(27, 141, 255, 0.85) 100%);
+      backdrop-filter: blur(8px);
       border-radius: 20px;
-      border: 1px solid rgba(148, 163, 184, 0.45); /* 更清晰边框 */
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(33, 150, 243, 0.3);
+      box-shadow: 0 8px 32px rgba(33, 150, 243, 0.2);
       flex-shrink: 0;
       position: relative;
     }
     .app-icon {
       width: 56px;
       height: 56px;
-      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
-      border-radius: 18px;
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
       font-size: 24px;
       margin-right: 16px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 20px rgba(33, 150, 243, 0.4);
+      transition: all 0.2s ease;
       position: relative;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .app-icon:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 25px rgba(33, 150, 243, 0.6);
     }
     /* 移除复杂动画以提升性能 */
     .app-info h1 {
       font-size: 24px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: white;
       margin-bottom: 4px;
       letter-spacing: -0.5px;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     .app-info .version {
+      color: rgba(255, 255, 255, 0.8);
       font-size: 14px;
-      /* 颜色由Vue动态控制：红色(有更新)、绿色(最新)、紫色(超前) */
+      font-weight: 500;
     }
     .main-content {
       flex: 1;
@@ -146,43 +133,36 @@
     }
     .right-panel {
       flex: 1;
-      background: rgba(30, 41, 59, 0.5);
-      backdrop-filter: blur(20px);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
       border-radius: 20px;
-      padding: 20px;
-      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       display: flex;
       flex-direction: column;
       min-height: 0;
       overflow-y: auto;
     }
-    /* 隐藏滚动条但保留功能 */
-    .right-panel::-webkit-scrollbar {
-      width: 4px;
-    }
-    .right-panel::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-    }
     .step-card {
-      background: rgba(30, 41, 59, 0.5);
-      backdrop-filter: blur(20px);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
       border-radius: 18px;
-      padding: 18px 24px;
-      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       position: relative;
-      flex: 1;
+      flex: 1; /* 让步骤卡片平均分配空间 */
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: center; /* 内容垂直居中 */
       overflow: visible;
       z-index: 5;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     .step-card:hover {
-      background: rgba(30, 41, 59, 0.6);
-      border-color: rgba(148, 163, 184, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
     }
     .step-number {
       position: absolute;
@@ -190,7 +170,7 @@
       left: 24px;
       width: 36px;
       height: 36px;
-      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
       color: white;
       border-radius: 50%;
       display: flex;
@@ -199,26 +179,34 @@
       font-weight: 700;
       font-size: 16px;
       z-index: 100;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      border: 3px solid rgba(30, 41, 59, 0.5);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+      border: 3px solid rgba(255, 255, 255, 0.9);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .step-number:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
     }
     .step-number.completed {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+      box-shadow: 0 4px 20px rgba(82, 196, 26, 0.4);
     }
     .step-number.processing {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);
+      box-shadow: 0 4px 20px rgba(250, 173, 20, 0.4);
+      animation: pulse 1.5s infinite;
     }
     .step-title {
       font-size: 18px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: #2c3e50;
       margin-bottom: 10px;
       margin-top: 12px;
       margin-left: 60px;
       letter-spacing: -0.3px;
     }
     .step-desc {
-      color: #cbd5e1;
+      color: #5a6c7d;
       font-size: 14px;
       line-height: 1.6;
       opacity: 0.9;
@@ -233,84 +221,80 @@
       justify-content: space-between;
       margin-bottom: 6px;
       font-weight: 500;
-      color: #cbd5e1;
+      color: #606266;
       font-size: 13px;
     }
     .header-settings-icon {
       cursor: pointer;
-      color: #94a3b8;
+      color: #64748b;
       font-size: 24px;
       padding: 12px;
-      border-radius: 16px;
+      border-radius: 12px;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      background: rgba(30, 41, 59, 0.3);
+      background: rgba(255, 255, 255, 0.8);
       backdrop-filter: blur(4px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     }
     .header-settings-icon:hover {
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.15);
-      box-shadow: 0 8px 20px rgba(56, 189, 248, 0.25);
-      border-color: rgba(56, 189, 248, 0.3);
+      color: #2196f3;
+      background: rgba(102, 126, 234, 0.1);
+      transform: rotate(90deg) scale(1.1);
+      box-shadow: 0 6px 25px rgba(102, 126, 234, 0.2);
     }
     .header-help-button {
       cursor: pointer;
-      color: #e2e8f0;
-      padding: 10px 20px;
-      border-radius: 16px;
-      background: rgba(15, 23, 42, 0.7);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      font-size: 14px;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+      font-size: 13px;
       font-weight: 600;
-      letter-spacing: 0.5px;
     }
     .header-help-button:hover {
-      background: rgba(30, 41, 59, 0.5);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-      color: #38bdf8;
-      border-color: rgba(56, 189, 248, 0.3);
-      text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+      background: linear-gradient(135deg, #45a049 0%, #388e3c 100%);
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 6px 25px rgba(76, 175, 80, 0.4);
     }
     .input-field {
       width: 100%;
-      padding: 14px 20px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      font-size: 15px;
+      padding: 12px 16px;
+      border: 1px solid #dcdfe6;
+      border-radius: 8px;
+      font-size: 14px;
       transition: all 0.3s ease;
-      background: rgba(15, 23, 42, 0.3);
-      color: #f1f5f9;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+      background: white;
     }
     .input-field:focus {
       outline: none;
-      border-color: #38bdf8;
-      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.2);
-      background: rgba(15, 23, 42, 0.5);
+      border-color: #409eff;
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
     }
     .action-button {
       width: 100%;
       padding: 14px 24px;
-      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
       color: white;
       border: none;
-      border-radius: 14px;
+      border-radius: 12px;
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
-      margin-bottom: 12px;
-      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
       position: relative;
       overflow: hidden;
-      letter-spacing: 0.5px;
-      flex-shrink: 0;
     }
+    /* 移除按钮光效动画以提升性能 */
     .action-button:hover:not(:disabled) {
-      background: linear-gradient(135deg, #06b6d4 0%, #2563eb 100%);
-      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+      background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
     }
     .action-button:active:not(:disabled) {
       transform: translateY(0);
@@ -319,29 +303,29 @@
       opacity: 0.5;
       cursor: not-allowed;
       transform: none;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.1);
     }
     .notice-card {
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.3); /* 清晰边框 */
-      border-radius: 18px;
-      padding: 16px 20px;
-      flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      height: 150px;
-      overflow: hidden;
-      position: relative;
+      background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+      border: 1px solid rgba(255, 193, 7, 0.3);
+      border-radius: 16px;
+      padding: 18px;
+      flex-shrink: 0; /* 保持固定大小，不参与flex分配 */
+      box-shadow: 0 4px 20px rgba(255, 193, 7, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      max-height: 150px; /* 限制最大高度 */
+      overflow: hidden; /* 隐藏超出内容 */
     }
     .notice-card:hover {
-      border-color: rgba(56, 189, 248, 0.4);
-      background: rgba(56, 189, 248, 0.12);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 25px rgba(255, 193, 7, 0.15);
     }
     .notice-title {
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-weight: 700;
-      color: #38bdf8;
+      color: #f57c00;
       margin-bottom: 12px;
       font-size: 16px;
     }
@@ -350,33 +334,33 @@
       font-size: 18px;
     }
     .notice-content {
-      color: #e5e5e5;
+      color: #5d4037;
       font-size: 14px;
       line-height: 1.6;
       opacity: 0.9;
     }
     .notice-time {
-      color: #38bdf8;
+      color: #8d6e63;
       font-size: 13px;
       text-align: right;
       margin-top: 12px;
       opacity: 0.7;
     }
     .notice-refresh-btn {
-      background: rgba(56, 189, 248, 0.1);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
       border: none;
       border-radius: 50%;
       width: 28px;
       height: 28px;
       cursor: pointer;
       font-size: 12px;
-      color: #38bdf8;
+      color: #f57c00;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       backdrop-filter: blur(4px);
       box-shadow:
-        0 2px 6px rgba(56, 189, 248, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        0 0 0 1px rgba(56, 189, 248, 0.2);
+        0 2px 8px rgba(245, 124, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        0 0 0 1px rgba(245, 124, 0, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -385,29 +369,35 @@
     }
     /* 移除刷新按钮光效动画 */
     .notice-refresh-btn:hover:not(:disabled) {
-      background: rgba(56, 189, 248, 0.2);
+      background: linear-gradient(135deg, rgba(245, 124, 0, 0.1) 0%, rgba(255, 193, 7, 0.1) 100%);
+      transform: translateY(-1px) scale(1.05);
       box-shadow:
-        0 3px 12px rgba(56, 189, 248, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        0 0 0 1px rgba(56, 189, 248, 0.3);
-      color: #7dd3fc;
+        0 4px 16px rgba(245, 124, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 0 0 1px rgba(245, 124, 0, 0.4);
+      color: #e65100;
     }
     /* 移除光效动画 */
     .notice-refresh-btn:active:not(:disabled) {
+      transform: translateY(0) scale(0.98);
       box-shadow:
-        0 2px 6px rgba(217, 119, 6, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8),
-        0 0 0 1px rgba(217, 119, 6, 0.25);
+        0 2px 8px rgba(245, 124, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7),
+        0 0 0 1px rgba(245, 124, 0, 0.3);
     }
     .notice-refresh-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
       transform: none;
-      background: linear-gradient(135deg, rgba(226, 232, 240, 0.8) 0%, rgba(203, 213, 225, 0.6) 100%);
-      color: #94a3b8;
+      background: linear-gradient(135deg, rgba(200, 200, 200, 0.6) 0%, rgba(180, 180, 180, 0.4) 100%);
+      color: #999;
     }
     .refresh-icon {
+      transition: transform 0.3s ease;
       font-size: 14px;
+    }
+    .notice-refresh-btn:hover:not(:disabled) .refresh-icon {
+      transform: rotate(180deg);
     }
     .loading-spinner {
       animation: spin 1.2s linear infinite;
@@ -422,108 +412,105 @@
       flex-shrink: 0;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px; /* 调整间距 */
+      gap: 8px 12px;
     }
     .status-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 12px;
-      background: rgba(30, 41, 59, 0.5);
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(0, 0, 0, 0.05);
     }
     .status-item:hover {
-      background-color: rgba(30, 41, 59, 0.6);
-      border-color: rgba(148, 163, 184, 0.4);
+      background-color: rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
     }
     .status-label {
-      color: #94a3b8;
+      color: #5a6c7d;
       font-size: 12px;
       font-weight: 500;
     }
     .status-value {
       font-weight: 600;
-      color: #e2e8f0;
+      color: #2c3e50;
       font-size: 13px;
     }
     .status-value.success {
-      color: #34d399;
+      color: #67c23a;
     }
     .status-value.warning {
-      color: #fbbf24;
+      color: #e6a23c;
     }
     .validity-container {
-      background: rgba(30, 41, 59, 0.5);
-      border-radius: 16px;
-      padding: 16px;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 12px;
+      padding: 8px;
       flex-shrink: 0;
-      min-height: auto;
-      border: 1px solid rgba(148, 163, 184, 0.3); /* 清晰边框 */
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      margin-bottom: 12px;
+      min-height: 50px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      margin-bottom: 8px;
     }
     .validity-info {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 12px;
-      gap: 10px;
+      margin-bottom: 8px;
     }
     .validity-text {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: rgba(15, 23, 42, 0.5);
-      min-width: 90px;
-      flex: 1;
-      border: 1px solid rgba(148, 163, 184, 0.2); /* 清晰边框 */
+      padding: 4px 6px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.7);
+      min-width: 70px;
     }
     .validity-label {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-bottom: 5px;
+      font-size: 10px;
+      color: #64748b;
+      margin-bottom: 3px;
       font-weight: 500;
     }
     .validity-days {
-      font-size: 20px;
+      font-size: 14px;
       font-weight: 700;
-      color: #34d399;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      color: #10b981;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
     .validity-days.warning {
-      color: #fbbf24;
+      color: #f59e0b;
     }
     .validity-days.danger {
-      color: #f87171;
+      color: #ef4444;
     }
     .validity-total {
-      font-size: 16px;
-      color: #cbd5e1;
+      font-size: 12px;
+      color: #475569;
       font-weight: 600;
     }
     .progress-container {
-      margin-top: 10px;
+      margin-top: 6px;
     }
     .progress-bar {
       width: 100%;
-      height: 18px;
-      background: rgba(15, 23, 42, 0.4);
-      border-radius: 9px;
+      height: 14px;
+      background: rgba(226, 232, 240, 0.8);
+      border-radius: 7px;
       overflow: hidden;
       position: relative;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #22d3ee 0%, #3b82f6 100%);
-      border-radius: 9px;
+      background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+      border-radius: 7px;
       transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
-      box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
     }
     /* 移除进度条光效动画 */
     .progress-fill.warning {
@@ -536,26 +523,98 @@
     }
     .progress-text {
       text-align: center;
-      margin-top: 6px;
-      font-size: 12px;
-      color: #94a3b8;
+      margin-top: 4px;
+      font-size: 10px;
+      color: #64748b;
       font-weight: 500;
     }
-
+    /* 突破地区限制开关样式 */
+    .region-unlock-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgb(102, 126, 234, 0.05);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    .region-unlock-option:hover {
+      background: rgba(102, 126, 234, 0.05);
+      border-color: rgba(102, 126, 234, 0.2);
+    }
+    .region-unlock-option.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: rgba(0, 0, 0, 0.02);
+    }
+    .region-unlock-option.disabled:hover {
+      background: rgba(0, 0, 0, 0.02);
+      border-color: rgba(0, 0, 0, 0.05);
+    }
+    .region-unlock-option.disabled .toggle-switch {
+      opacity: 0.6;
+    }
+    .region-unlock-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2c3e50;
+      cursor: pointer;
+      user-select: none;
+    }
     /* 卡密过期按钮样式 */
     .expired-button {
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
       color: white !important;
       cursor: not-allowed !important;
       opacity: 0.8 !important;
-      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.25) !important;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
     }
     .expired-button:hover {
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
       transform: none !important;
-      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.25) !important;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
     }
-
+    /* 隐藏原始checkbox */
+    .region-unlock-option input[type="checkbox"] {
+      display: none;
+    }
+    /* Toggle Switch样式 */
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: #ff0000;
+      border-radius: 12px;
+      transition: background 0.3s ease;
+      flex-shrink: 0;
+    }
+    .toggle-switch::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .region-unlock-option input[type="checkbox"]:checked + .region-unlock-content .toggle-switch {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .region-unlock-option input[type="checkbox"]:checked + .region-unlock-content .toggle-switch::before {
+      transform: translateX(20px);
+    }
+    .region-unlock-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
@@ -569,33 +628,32 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.5);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1000;
     }
     .dialog-content1 {
-      background: rgba(30, 41, 59, 0.9);
-      backdrop-filter: blur(16px);
-      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
       padding: 5px;
       width: 420px;
       max-width: 90vw;
-      border: 1px solid rgba(148, 163, 184, 0.1);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
       animation: dialogSlideIn 0.3s ease-out;
     }
     .dialog-content {
-      background: rgba(30, 41, 59, 0.9);
-      backdrop-filter: blur(16px);
-      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
       padding: 35px;
       width: 420px;
       max-width: 90vw;
-      border: 1px solid rgba(148, 163, 184, 0.1);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
       animation: dialogSlideIn 0.3s ease-out;
     }
     @keyframes dialogSlideIn {
@@ -611,7 +669,10 @@
     .dialog-title {
       font-size: 20px;
       font-weight: 700;
-      color: #e2e8f0;
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
       margin-bottom: 20px;
       text-align: center;
       letter-spacing: -0.5px;
@@ -619,18 +680,16 @@
     .dialog-input {
       width: 100%;
       padding: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      border: 1px solid #dcdfe6;
       border-radius: 8px;
       font-size: 14px;
       margin-bottom: 16px;
       box-sizing: border-box;
-      background: rgba(15, 23, 42, 0.6);
-      color: #e2e8f0;
     }
     .dialog-input:focus {
       outline: none;
-      border-color: #38bdf8;
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+      border-color: #409eff;
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
     }
     .dialog-buttons {
       display: flex;
@@ -638,67 +697,31 @@
       justify-content: flex-end;
     }
     .dialog-button {
-      padding: 12px 24px;
+      padding: 10px 20px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       font-size: 14px;
-      font-weight: 500;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.3s;
     }
     .dialog-button.primary {
-      background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+      background: #409eff;
       color: white;
-      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
     }
     .dialog-button.primary:hover {
-      background: linear-gradient(135deg, #0891b2 0%, #2563eb 100%);
-      box-shadow: 0 6px 16px rgba(6, 182, 212, 0.4);
-      transform: translateY(-1px);
-    }
-    .dialog-button.primary:active {
-      transform: translateY(0);
+      background: #66b1ff;
     }
     .dialog-button.primary:disabled {
-      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      background: #c0c4cc;
       cursor: not-allowed;
-      box-shadow: none;
-      opacity: 0.6;
     }
     .dialog-button.secondary {
-      background: rgba(30, 41, 59, 0.6);
-      color: #e2e8f0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: #565656;
+      color: #ffffff;
     }
     .dialog-button.secondary:hover {
-      background: rgba(30, 41, 59, 0.8);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      transform: translateY(-1px);
+      background: #676767;
     }
-    .dialog-button.secondary:active {
-      transform: translateY(0);
-    }
-    .dialog-button.success {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
-    .dialog-button.success:hover {
-      background: linear-gradient(135deg, #059669 0%, #047857 100%);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-      transform: translateY(-1px);
-    }
-    .dialog-button.success:active {
-      transform: translateY(0);
-    }
-
-    /* 弹窗关闭按钮样式 */
-    .popup-dialog button[title="关闭"]:hover {
-      color: #e2e8f0 !important;
-      transform: rotate(90deg);
-    }
-
     .verification-status {
       margin-bottom: 16px;
       padding: 8px 12px;
@@ -707,80 +730,72 @@
       text-align: center;
     }
     .verification-status.success {
-      background: rgba(16, 185, 129, 0.2);
-      color: #10b981;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: #f0f9ff;
+      color: #67c23a;
+      border: 1px solid #b3e19d;
     }
     .verification-status.error {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: #fef0f0;
+      color: #f56c6c;
+      border: 1px solid #fbc4c4;
     }
     .verification-status.loading {
-      background: rgba(100, 116, 139, 0.2);
-      color: #94a3b8;
-      border: 1px solid rgba(100, 116, 139, 0.3);
+      background: #f4f4f5;
+      color: #909399;
+      border: 1px solid #e4e7ed;
     }
     .button-group {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px; /* 减小间距 */
-      margin-top: auto; /* 推到底部 */
+      gap: 8px 12px;
+      margin-top: 12px;
       flex-shrink: 0;
     }
     .secondary-button {
-      padding: 10px 18px;
-      background: rgba(30, 41, 59, 0.4);
-      color: #e2e8f0;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #5a67d8;
+      border: 1px solid rgba(90, 103, 216, 0.3);
+      border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       backdrop-filter: blur(10px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 10px rgba(90, 103, 216, 0.1);
       position: relative;
       overflow: hidden;
-      letter-spacing: 0.3px;
     }
     /* 移除按钮光效动画 */
     .secondary-button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      background: rgba(30, 41, 59, 0.6);
-      border-color: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      box-shadow: 0 4px 15px rgba(90, 103, 216, 0.2);
     }
 
     /* 蓝色按钮样式 - 进入官网、设置 */
     .blue-button {
-      background: rgba(30, 41, 59, 0.4);
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
       color: white;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
     }
     .blue-button:hover {
-      background: rgba(30, 41, 59, 0.6);
+      background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
       transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-      border-color: rgba(56, 189, 248, 0.2);
-      color: #38bdf8;
+      box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
     }
 
     /* 红色按钮样式 - 禁用更新 */
     .red-button {
-      background: rgba(30, 41, 59, 0.4);
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       color: white;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
     }
     .red-button:hover:not(.disabled) {
-      background: rgba(30, 41, 59, 0.6);
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
       transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-      border-color: rgba(248, 113, 113, 0.2);
-      color: #f87171;
+      box-shadow: 0 8px 30px rgba(239, 68, 68, 0.4);
     }
 
     .red-button.disabled {
@@ -822,32 +837,31 @@
       box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2);
     }
 
-    /* 主要按钮样式 - 刷新Kiro验证通过后 */
+    /* 主要按钮样式 - 刷新Cursor验证通过后 */
     .secondary-button.primary-button {
-      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
       color: white;
-      border: none;
+      border: 1px solid rgba(102, 126, 234, 0.3);
       font-weight: 700;
-      box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
     }
     .secondary-button.primary-button:hover {
-      background: linear-gradient(135deg, #06b6d4 0%, #2563eb 100%);
+      background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
     }
     .secondary-button.primary-button:disabled {
-      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
-      border: 1px solid rgba(75, 85, 99, 0.3);
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      border: 1px solid rgba(156, 163, 175, 0.3);
       color: white;
       cursor: not-allowed;
       transform: none;
-      box-shadow: 0 2px 8px rgba(156, 163, 175, 0.15);
+      box-shadow: 0 2px 10px rgba(156, 163, 175, 0.2);
     }
     /* 自定义标题栏样式 */
     .custom-titlebar {
       height: 30px;
-      background: transparent;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.35); /* 更清晰的分割线 */
+      background: linear-gradient(135deg, #117fff, #117fff);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -908,20 +922,17 @@
     /* 数据库选择项样式 */
     .database-item {
       transition: all 0.3s ease;
-      background: transparent;
     }
-
+    
     .database-item:hover {
-      background: linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.5) 100%);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      background-color: #f5f7fa;
     }
-
+    
     .database-item.selected {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.15) 100%);
-      border-left: 4px solid #10b981;
-      box-shadow: 0 2px 12px rgba(16, 185, 129, 0.2);
+      background-color: #e8f4fd;
+      border-left: 4px solid #409eff;
     }
-
+    
     .database-item:last-child {
       border-bottom: none;
     }
@@ -936,37 +947,44 @@
       font-size: 13px;
       font-weight: 600;
       transition: all 0.3s ease;
-      background: rgba(30, 41, 59, 0.4);
-      border: 1px solid rgba(148, 163, 184, 0.1);
-      color: #38bdf8;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(4px);
       cursor: help;
     }
 
     .permission-status.administrator {
-      color: #38bdf8;
+      background: linear-gradient(135deg, rgba(76, 175, 80, 0.9) 0%, rgba(67, 160, 71, 0.85) 100%);
+      color: white;
+      box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
     }
 
     .permission-status.root {
-      color: #38bdf8;
+      background: linear-gradient(135deg, rgba(233, 30, 99, 0.9) 0%, rgba(216, 27, 96, 0.85) 100%);
+      color: white;
+      box-shadow: 0 4px 20px rgba(233, 30, 99, 0.3);
     }
 
     .permission-status.sudo {
-      color: #38bdf8;
+      background: linear-gradient(135deg, rgba(255, 152, 0, 0.9) 0%, rgba(245, 124, 0, 0.85) 100%);
+      color: white;
+      box-shadow: 0 4px 20px rgba(255, 152, 0, 0.3);
     }
 
     .permission-status.user {
-      color: #94a3b8;
+      background: linear-gradient(135deg, rgba(96, 125, 139, 0.9) 0%, rgba(84, 110, 122, 0.85) 100%);
+      color: white;
+      box-shadow: 0 4px 20px rgba(96, 125, 139, 0.3);
     }
 
     .permission-status.unknown {
-      color: #6b7280;
+      background: linear-gradient(135deg, rgba(158, 158, 158, 0.9) 0%, rgba(117, 117, 117, 0.85) 100%);
+      color: white;
+      box-shadow: 0 4px 20px rgba(158, 158, 158, 0.3);
     }
 
     .permission-status:hover {
       transform: translateY(-1px);
-      background: rgba(30, 41, 59, 0.6);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      filter: brightness(1.1);
     }
 
     .permission-text {
@@ -1150,8 +1168,8 @@
       }
     }
 
-    /* Kiro初始化提示框样式 */
-    .Kiro-init-alert-overlay {
+    /* Cursor初始化提示框样式 */
+    .cursor-init-alert-overlay {
       position: fixed;
       top: 0;
       left: 0;
@@ -1165,7 +1183,7 @@
       animation: fadeIn 0.3s ease-out;
     }
 
-    .Kiro-init-alert-box {
+    .cursor-init-alert-box {
       background: linear-gradient(135deg, #fff 0%, #f0f7ff 100%);
       border-radius: 20px;
       padding: 32px;
@@ -1181,7 +1199,7 @@
       overflow: hidden;
     }
 
-    .Kiro-init-alert-box::before {
+    .cursor-init-alert-box::before {
       content: '';
       position: absolute;
       top: 0;
@@ -1192,14 +1210,14 @@
       animation: shimmer 2s infinite;
     }
 
-    .Kiro-init-alert-icon {
+    .cursor-init-alert-icon {
       text-align: center;
       font-size: 48px;
       margin-bottom: 16px;
       animation: pulse 2s infinite;
     }
 
-    .Kiro-init-alert-title {
+    .cursor-init-alert-title {
       font-size: 24px;
       font-weight: 700;
       color: #1976d2;
@@ -1208,33 +1226,33 @@
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
-    .Kiro-init-alert-content {
+    .cursor-init-alert-content {
       color: #2c3e50;
       line-height: 1.6;
       margin-bottom: 24px;
     }
 
-    .Kiro-init-alert-content p {
+    .cursor-init-alert-content p {
       margin-bottom: 12px;
       font-weight: 500;
     }
 
-    .Kiro-init-alert-content ol {
+    .cursor-init-alert-content ol {
       margin: 0 0 16px 0;
       padding-left: 20px;
     }
 
-    .Kiro-init-alert-content li {
+    .cursor-init-alert-content li {
       margin-bottom: 8px;
       font-size: 15px;
     }
 
-    .Kiro-init-alert-content strong {
+    .cursor-init-alert-content strong {
       color: #1976d2;
       font-weight: 700;
     }
 
-    .Kiro-init-tip {
+    .cursor-init-tip {
       background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
       border-left: 4px solid #2196f3;
       padding: 12px 16px;
@@ -1244,11 +1262,11 @@
       margin-top: 16px;
     }
 
-    .Kiro-init-alert-buttons {
+    .cursor-init-alert-buttons {
       text-align: center;
     }
 
-    .Kiro-init-alert-btn {
+    .cursor-init-alert-btn {
       background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
       color: white;
       border: none;
@@ -1263,32 +1281,32 @@
       overflow: hidden;
     }
 
-    .Kiro-init-alert-btn:hover {
+    .cursor-init-alert-btn:hover {
       background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
       transform: translateY(-2px);
       box-shadow: 0 8px 30px rgba(33, 150, 243, 0.5);
     }
 
-    .Kiro-init-alert-btn:active {
+    .cursor-init-alert-btn:active {
       transform: translateY(0);
     }
 
-    .Kiro-init-alert-btn.secondary {
+    .cursor-init-alert-btn.secondary {
       background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
       color: white;
     }
 
-    .Kiro-init-alert-btn.secondary:hover {
+    .cursor-init-alert-btn.secondary:hover {
       background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
       transform: translateY(-2px);
       box-shadow: 0 8px 30px rgba(108, 117, 125, 0.5);
     }
 
-    .Kiro-init-alert-btn.secondary:active {
+    .cursor-init-alert-btn.secondary:active {
       transform: translateY(0);
     }
 
-    .Kiro-init-alert-btn.secondary:disabled {
+    .cursor-init-alert-btn.secondary:disabled {
       background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
       color: #d1d5db;
       cursor: not-allowed;
@@ -1564,74 +1582,57 @@
       }
     }
 
-    /* 刷新Kiro提示弹窗样式 */
-    .Kiro-refresh-tip {
+    /* 刷新Cursor提示弹窗样式 */
+    .cursor-refresh-tip {
+      border-radius: 16px !important;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+      margin-left: 10px;
       width: 400px !important;
       max-width: 90vw !important;
-      border: none !important;
-      background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
-      padding: 0 !important;
-      border-radius: 16px !important;
-      overflow: hidden !important;
     }
-
-    .Kiro-refresh-tip .el-message-box {
+    
+    .cursor-refresh-tip .el-message-box {
       width: 100% !important;
-      background: transparent !important;
-      border: none !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
     }
-
-    .Kiro-refresh-tip .el-message-box__header {
+    
+    .cursor-refresh-tip .el-message-box__header {
       padding: 0 !important;
       background: transparent !important;
       border: none !important;
     }
-
-    .Kiro-refresh-tip .el-message-box__headerbtn {
+    
+    .cursor-refresh-tip .el-message-box__headerbtn {
       top: 12px !important;
       right: 12px !important;
       z-index: 10;
     }
-
-    .Kiro-refresh-tip .el-message-box__headerbtn .el-message-box__close {
-      color: #94a3b8 !important;
+    
+    .cursor-refresh-tip .el-message-box__headerbtn .el-message-box__close {
+      color: #999 !important;
       font-size: 20px !important;
       transition: all 0.3s ease !important;
     }
-
-    .Kiro-refresh-tip .el-message-box__headerbtn .el-message-box__close:hover {
-      color: #e2e8f0 !important;
+    
+    .cursor-refresh-tip .el-message-box__headerbtn .el-message-box__close:hover {
+      color: #333 !important;
       transform: rotate(90deg) !important;
     }
-
-    .Kiro-refresh-tip .el-message-box__content {
+    
+    .cursor-refresh-tip .el-message-box__content {
       padding: 0 !important;
       line-height: 1.6 !important;
     }
-
-    .Kiro-refresh-tip .el-message-box__message {
+    
+    .cursor-refresh-tip .el-message-box__message {
       padding: 0 !important;
       margin: 0 !important;
     }
-
+    
     /* 弹窗内容容器 */
     .refresh-tip-content {
-      padding: 30px 25px 30px 55px;
-      background: transparent;
-      text-align: center;
-    }
-    
-    .refresh-tip-content .tip-message {
-      text-align: center;
-    }
-    
-    .refresh-tip-content .tip-steps {
-      text-align: left;
-      display: inline-block;
-      width: 100%;
+      padding: 30px 30px 25px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
     }
     
     /* 顶部图标 */
@@ -1651,30 +1652,33 @@
     .refresh-tip-content .tip-title {
       font-size: 20px;
       font-weight: 600;
-      color: #e2e8f0;
+      color: #333;
       text-align: center;
       margin-bottom: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
-
+    
     /* 主要提示文字 */
     .refresh-tip-content .tip-main {
       font-size: 16px;
-      color: #cbd5e1;
+      color: #555;
       text-align: center;
       margin: 0 0 20px 0;
       font-weight: 500;
     }
-
+    
     /* 步骤容器 */
     .refresh-tip-content .tip-steps {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(100, 116, 139, 0.2);
+      background: white;
       border-radius: 12px;
       padding: 16px;
       margin-bottom: 16px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
-
+    
     /* 每个步骤 */
     .refresh-tip-content .tip-step {
       display: flex;
@@ -1682,30 +1686,30 @@
       padding: 10px 0;
       transition: all 0.3s ease;
     }
-
+    
     .refresh-tip-content .tip-step:not(:last-child) {
-      border-bottom: 1px dashed rgba(100, 116, 139, 0.3);
+      border-bottom: 1px dashed #e8e8e8;
     }
-
+    
     /* .refresh-tip-content .tip-step:hover {
       transform: translateX(4px);
     } */
-
+    
     .refresh-tip-content .tip-step .step-icon {
       font-size: 22px;
       margin-right: 12px;
       flex-shrink: 0;
       line-height: 1.4;
     }
-
+    
     .refresh-tip-content .tip-step .step-text {
-      color: #94a3b8;
+      color: #666;
       font-size: 14px;
       line-height: 1.6;
     }
-
+    
     .refresh-tip-content .tip-step .step-text strong {
-      color: #60a5fa;
+      color: #667eea;
       font-weight: 600;
     }
     
@@ -1715,66 +1719,62 @@
       align-items: center;
       justify-content: center;
       padding: 12px 16px;
-      background: rgba(251, 191, 36, 0.15);
+      background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
       border-radius: 8px;
-      border-left: 4px solid #fbbf24;
+      border-left: 4px solid #ffc107;
     }
-
+    
     .refresh-tip-content .tip-footer .footer-icon {
       font-size: 18px;
       margin-right: 8px;
     }
-
+    
     .refresh-tip-content .tip-footer .footer-text {
-      color: #fcd34d;
+      color: #856404;
       font-size: 13px;
       font-weight: 500;
     }
-
+    
     /* 按钮样式 */
-    .Kiro-refresh-tip .el-message-box__btns {
-      padding: 0 30px 24px !important;
+    .cursor-refresh-tip .el-message-box__btns {
+      padding: 0 30px 30px !important;
       display: flex;
       gap: 12px;
       justify-content: center;
-      background: transparent !important;
-      margin: 0 !important;
+      background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
     }
-
-    .Kiro-refresh-tip .el-button--primary {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    
+    .cursor-refresh-tip .el-button--primary {
+      background: linear-gradient(135deg, #5ba25f 0%, #60b064 100%) !important;
       border: none !important;
       padding: 13px 32px !important;
       font-size: 15px !important;
       font-weight: 600 !important;
       border-radius: 10px !important;
       transition: all 0.3s ease !important;
-      color: #ffffff !important;
     }
-
-    .Kiro-refresh-tip .el-button--primary:hover {
+    
+    .cursor-refresh-tip .el-button--primary:hover {
       transform: translateY(-2px) !important;
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+      box-shadow: 0 6px 16px rgba(82, 196, 26, 0.4) !important;
     }
-
-    .Kiro-refresh-tip .el-button--primary:active {
+    
+    .cursor-refresh-tip .el-button--primary:active {
       transform: translateY(0) !important;
     }
-
-    .Kiro-refresh-tip .el-button--default {
+    
+    .cursor-refresh-tip .el-button--default {
       padding: 13px 28px !important;
       font-size: 15px !important;
       border-radius: 10px !important;
-      border: 1px solid rgba(100, 116, 139, 0.3) !important;
-      color: #94a3b8 !important;
-      background: rgba(30, 41, 59, 0.5) !important;
+      border: 1px solid #dcdfe6 !important;
+      color: #606266 !important;
       transition: all 0.3s ease !important;
     }
-
-    .Kiro-refresh-tip .el-button--default:hover {
-      border-color: rgba(148, 163, 184, 0.5) !important;
-      background: rgba(51, 65, 85, 0.5) !important;
-      color: #cbd5e1 !important;
+    
+    .cursor-refresh-tip .el-button--default:hover {
+      border-color: #c0c4cc !important;
+      background: #f5f7fa !important;
     }
   </style>
 </head>
@@ -1799,7 +1799,7 @@
         <circle cx="16" cy="16" r="12" fill="currentColor" opacity="0.8"/>
         <path d="M12 16l4 4 8-8" stroke="white" stroke-width="2" fill="none"/>
       </svg>
-      Kiro续杯工具
+      Cursor续杯工具
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-button minimize-btn" onclick="minimizeWindow()">
@@ -1819,65 +1819,62 @@
       <div style="display: flex; align-items: center;">
         <div class="app-icon">
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="iconGradient" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                <stop stop-color="white" stop-opacity="0.95"/>
-                <stop offset="1" stop-color="white" stop-opacity="0.7"/>
-              </linearGradient>
-            </defs>
-            <!-- 核心图形：无限循环 -->
-            <path d="M22.5 10.5C20.5 8.5 17.5 8.5 15.5 10.5L12.5 13.5C11.5 14.5 10 14.5 9 13.5C8 12.5 8 11 9 10C10 9 11 9 12 10" stroke="url(#iconGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/>
-            <path d="M9.5 21.5C11.5 23.5 14.5 23.5 16.5 21.5L19.5 18.5C20.5 17.5 22 17.5 23 18.5C24 19.5 24 21 23 22C22 23 21 23 20 22" stroke="url(#iconGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/>
-            <!-- 主能量符号：闪电/激活 -->
-            <path d="M18 4L10 16H17L16 28L24 16H17L18 4Z" fill="white"/>
-            <!-- 装饰粒子 -->
-            <circle cx="6" cy="16" r="1.5" fill="white" fill-opacity="0.6"/>
-            <circle cx="26" cy="16" r="1.5" fill="white" fill-opacity="0.6"/>
-            <circle cx="16" cy="6" r="1.5" fill="white" fill-opacity="0.4"/>
-            <circle cx="16" cy="26" r="1.5" fill="white" fill-opacity="0.4"/>
+            <!-- 外圈刷新环 -->
+            <circle cx="16" cy="16" r="14" stroke="white" stroke-width="2" fill="none" opacity="0.3"/>
+
+            <!-- 主要的刷新箭头 -->
+            <path d="M16 4 A12 12 0 0 1 27.5 13" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M4.5 19 A12 12 0 0 1 16 28" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+            <!-- 箭头头部 -->
+            <path d="M24 10 L27.5 13 L24 16" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 22 L4.5 19 L8 16" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+            <!-- 中心的咖啡杯图标 -->
+            <g transform="translate(16, 16)">
+              <!-- 杯身 -->
+              <path d="M-4 -2 L4 -2 L3 4 L-3 4 Z" fill="white" fill-opacity="0.9"/>
+              <!-- 杯把手 -->
+              <path d="M4 0 L6 0 A1 1 0 0 1 6 2 L4 2" stroke="white" stroke-width="1" fill="none"/>
+              <!-- 咖啡液面 -->
+              <ellipse cx="0" cy="-1.5" rx="3.5" ry="0.8" fill="white" fill-opacity="0.6"/>
+              <!-- 蒸汽 -->
+              <path d="M-2 -4 Q-2 -5 -1.5 -5 Q-1 -5 -1 -4" stroke="white" stroke-width="1" fill="none" opacity="0.7"/>
+              <path d="M0 -4.5 Q0 -5.5 0.5 -5.5 Q1 -5.5 1 -4.5" stroke="white" stroke-width="1" fill="none" opacity="0.7"/>
+              <path d="M2 -4 Q2 -5 2.5 -5 Q3 -5 3 -4" stroke="white" stroke-width="1" fill="none" opacity="0.7"/>
+            </g>
           </svg>
         </div>
         <div class="app-info" style="position: relative;">
-          <h1>Kiro续杯工具</h1>
+          <h1>Cursor续杯工具</h1>
           <!-- 版本更新提示 - 红色感叹号，放在标题右上角 -->
           <span v-if="hasNewVersion" @click="showVersionUpdateDialog"
-                style="position: absolute; top: 33px; right: 50px; width: 14px; height: 14px; background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 8px rgba(255, 68, 68, 0.6);"
+                style="position: absolute; top: 33px; right: 80px; width: 14px; height: 14px; background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 8px rgba(255, 68, 68, 0.6);"
                 title="发现新版本，点击查看">
             !
           </span>
-          <div class="version" @click="showVersionUpdateDialog"
-               :style="{
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '6px',
-                 userSelect: 'none',
-                 cursor: 'pointer',
-                 color: versionCompareResult < 0 ? '#ff4444' : (versionCompareResult === 0 ? '#10b981' : '#a855f7'),
-                 fontWeight: '600',
-                 textShadow: versionCompareResult < 0 ? '0 2px 8px rgba(255, 68, 68, 0.4)' : (versionCompareResult === 0 ? '0 2px 8px rgba(16, 185, 129, 0.4)' : '0 2px 8px rgba(168, 85, 247, 0.4)'),
-                 transition: 'all 0.3s ease'
-               }">
-            Version 1.0
+          <div class="version" @click="showVersionUpdateDialog" style="display: flex; align-items: center; gap: 6px; user-select: none">
+            Version 6.3
           </div>
         </div>
       </div>
       <div style="display: flex; align-items: center; gap: 12px;">
         <!-- 通知铃铛按钮 -->
-        <div @click="openPopupNotification" title="查看通知公告" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(30, 41, 59, 0.3); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 50%; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);" onmouseover="this.style.transform='scale(1.1)'; this.style.background='rgba(56, 189, 248, 0.15)'; this.style.boxShadow='0 8px 20px rgba(56, 189, 248, 0.25)'; this.style.borderColor='rgba(56, 189, 248, 0.3)'" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(30, 41, 59, 0.3)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'; this.style.borderColor='rgba(255, 255, 255, 0.05)'">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <div @click="openPopupNotification" title="查看通知公告" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #ed5513 0%, #cb4911 100%); border-radius: 50%; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);" onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 16px rgba(102, 126, 234, 0.5)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(102, 126, 234, 0.3)';">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
         
         <!-- 售后交流群二维码按钮 -->
-        <div class="header-help-button" @click="showQrcodeDialog" title="进入售后交流群">
+        <div class="header-help-button" @click="showQrcodeDialog" title="进入售后交流群" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); cursor: pointer; transition: all 0.3s;">
           <span style="font-size: 14px; font-weight: 600; color: white;">进入售后交流群</span>
         </div>
-
-        <!-- Kiro常见问题处理按钮 -->
-        <div class="header-help-button" @click="openHelpPage" title="Kiro常见问题处理">
-          <span style="font-size: 14px; font-weight: 600; color: white;">Kiro常见问题处理</span>
+        
+        <!-- Cursor常见问题处理按钮 -->
+        <div class="header-help-button" @click="openHelpPage" title="Cursor常见问题处理">
+          <span style="font-size: 14px; font-weight: 600; color: white;">Cursor常见问题处理</span>
         </div>
         <!-- 权限状态显示 -->
         <div class="permission-status" :class="permissionStatusClass" :title="permissionTooltip">
@@ -1923,11 +1920,11 @@
             <div class="step-desc">点击右上角设置按钮输入授权码，验证通过后即可使用续杯功能。</div>
           </div>
 
-          <!-- 步骤2: 刷新Kiro -->
+          <!-- 步骤2: 刷新Cursor -->
           <div class="step-card">
             <div class="step-number" :class="{ completed: stepStatus[1] === 'completed', processing: stepStatus[1] === 'processing' }">2</div>
-            <div class="step-title">刷新Kiro</div>
-            <div class="step-desc">激活成功后，点击"刷新Kiro"按钮，系统将先退出当前登录的账号，然后自动切换到新账号并启动Kiro（如果未运行）。</div>
+            <div class="step-title">刷新Cursor</div>
+            <div class="step-desc">激活成功后，点击"刷新Cursor"按钮，系统将先退出当前登录的账号，然后自动切换到新账号并启动Cursor（如果未运行）。</div>
           </div>
         </div>
 
@@ -1935,6 +1932,7 @@
         <div class="notice-card">
           <div class="notice-title">
             <div style="display: flex; align-items: center;">
+              <span class="notice-icon">⚠️</span>
               {{ notice.title }}
             </div>
             <button class="notice-refresh-btn" @click="refreshNotice" :disabled="isLoadingNotice" title="刷新公告">
@@ -1960,8 +1958,8 @@
             <span class="status-value">{{ maskedCardCode }}</span>
           </div>
           <div class="status-item">
-            <span class="status-label">当前Kiro版本:</span>
-            <span class="status-value success">{{ KiroVersion || '未检测' }}</span>
+            <span class="status-label">当前Cursor版本:</span>
+            <span class="status-value success">{{ cursorVersion || '未检测' }}</span>
           </div>
           <div class="status-item">
             <span class="status-label">剩余额度:</span>
@@ -1974,7 +1972,7 @@
         </div>
         
         <!-- 卡密有效期进度 -->
-        <h3 style="margin-bottom: 10px; color: #e2e8f0; font-size: 15px; font-weight: 700;">卡密有效期</h3>
+        <h3 style="margin-bottom: 6px; color: #2c3e50; font-size: 13px; font-weight: 700;">卡密有效期</h3>
         <div class="validity-container">
           <div class="validity-info">
             <div class="validity-text">
@@ -1996,32 +1994,41 @@
             <div class="progress-text">{{ validityProgress.toFixed(1) }}%</div>
           </div>
         </div>
-
+        
+        <!-- 突破地区限制选项 -->
+        <label class="region-unlock-option" :class="{ 'disabled': !cardVerified || cardExpired }">
+          <input type="checkbox" v-model="enableRegionUnlock" :disabled="!cardVerified || cardExpired" />
+          <div class="region-unlock-content">
+            <span class="region-unlock-label">突破地区限制{{ !cardVerified ? '（请先验证卡密）' : cardExpired ? '（卡密已过期/失效）' : '' }}</span>
+            <div class="toggle-switch"></div>
+          </div>
+        </label>
+        
         <!-- 操作按钮 -->
         <div class="button-group">
             <button class="secondary-button"
                     @click="pythonStyleRenewal"
-                    :disabled="processing || !cardVerified || refreshKiroCooldown || cardExpired"
+                    :disabled="processing || !cardVerified || refreshCursorCooldown || cardExpired"
                     :class="{
-                      'primary-button': cardVerified && !refreshKiroCooldown && !cardExpired,
+                      'primary-button': cardVerified && !refreshCursorCooldown && !cardExpired,
                       'gray-button': (!cardVerified || cardExpired) && !processing,
-                      'disabled': refreshKiroCooldown || cardExpired,
+                      'disabled': refreshCursorCooldown || cardExpired,
                       'expired-button': cardExpired
                     }">
                 {{
                   processing ? '处理中...' :
                   cardExpired ? '卡密已过期/失效' :
-                  refreshKiroCooldown ? `刷新Kiro (${Math.floor(refreshKiroCountdown / 60)}:${String(refreshKiroCountdown % 60).padStart(2, '0')})` :
-                  (cardVerified ? '刷新Kiro' : '请先验证授权码')
+                  refreshCursorCooldown ? `刷新Cursor (${Math.floor(refreshCursorCountdown / 60)}:${String(refreshCursorCountdown % 60).padStart(2, '0')})` :
+                  (cardVerified ? '刷新Cursor' : '请先验证授权码')
                 }}
             </button>
-            <button class="secondary-button blue-button" @click="openSettings">指定Kiro路径</button>
+            <button class="secondary-button blue-button" @click="openSettings">指定Cursor路径</button>
           <button class="secondary-button blue-button" @click="openWebsite">进入官网</button>
           <button class="secondary-button red-button"
                   @click="checkUpdate"
                   :disabled="disableUpdateCooldown"
                   :class="{ 'disabled': disableUpdateCooldown }">
-            {{ disableUpdateCooldown ? `禁用更新 (${disableUpdateCountdown}s)` : '禁用Kiro更新' }}
+            {{ disableUpdateCooldown ? `禁用更新 (${disableUpdateCountdown}s)` : '禁用Cursor更新' }}
           </button>
         </div>
 
@@ -2067,38 +2074,38 @@
         <div class="dialog-title">应用设置</div>
 
         <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #e2e8f0;">自定义Kiro安装路径</label>
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">自定义Cursor安装路径</label>
           <div style="display: flex; gap: 8px;">
             <input
               type="text"
               class="dialog-input"
-              v-model="tempSettings.customKiroPath"
-              placeholder="留空使用默认路径，或选择Kiro安装目录"
+              v-model="tempSettings.customCursorPath"
+              placeholder="留空使用默认路径，或选择Cursor安装目录"
               style="flex: 1; margin-bottom: 0;"
             />
             <button
-              class="dialog-button primary"
-              style="padding: 8px 16px; white-space: nowrap;"
-              @click="selectKiroPath"
+              class="dialog-button"
+              style="background: #409eff; color: white; padding: 8px 16px; white-space: nowrap;"
+              @click="selectCursorPath"
               :disabled="isSelectingPath"
             >
               <span v-if="isSelectingPath">选择中...</span>
               <span v-else>选择目录</span>
             </button>
           </div>
-          <div style="font-size: 12px; color: #94a3b8; margin-top: 6px; line-height: 1.5;">
-            💡 提示：选择Kiro.exe所在的目录，例如：D:\Kiro
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">
+            提示：选择Cursor.exe所在的目录，例如：D:\cursor
           </div>
-          <div style="font-size: 12px; color: #fbbf24; margin-top: 4px; line-height: 1.5;">
-            ⚠️ 注意：具体教程点击续杯工具上方的“问题处理按钮”查看
+          <div style="font-size: 12px; color: #c80000; margin-top: 4px;">
+            注意：如果我卡了不动了，请您稍微等待一下，让我缓一下
           </div>
         </div>
 
         <div class="dialog-buttons">
-          <button class="dialog-button secondary" @click="closeSettingsDialog">
+          <button class="dialog-button" style="background: #dcdfe6; color: #606266;" @click="closeSettingsDialog">
             取消
           </button>
-          <button class="dialog-button success" @click="saveSettings">
+          <button class="dialog-button" style="background: #67c23a; color: white;" @click="saveSettings">
             保存设置
           </button>
         </div>
@@ -2108,49 +2115,48 @@
     <!-- 数据库选择对话框 -->
     <div v-if="showDatabaseDialog" class="dialog-overlay" @click.self="cancelDatabaseSelection">
       <div class="dialog-content" style="width: 600px; max-height: 70vh; overflow-y: auto;">
-        <div class="dialog-title">选择Kiro数据库</div>
-
-        <div style="margin-bottom: 20px; color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-          系统找到多个用户的Kiro数据库，请选择要使用的数据库：
+        <div class="dialog-title">选择Cursor数据库</div>
+        
+        <div style="margin-bottom: 20px; color: #666; font-size: 14px;">
+          系统找到多个用户的Cursor数据库，请选择要使用的数据库：
         </div>
 
-        <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(100, 116, 139, 0.4); border-radius: 8px; background: rgba(30, 41, 59, 0.3);">
-          <div
-            v-for="(db, index) in availableDatabases"
+        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">
+          <div 
+            v-for="(db, index) in availableDatabases" 
             :key="index"
             @click="selectedDatabaseIndex = index"
             :class="['database-item', { 'selected': selectedDatabaseIndex === index }]"
-            style="padding: 16px; border-bottom: 1px solid rgba(100, 116, 139, 0.2); cursor: pointer; transition: all 0.3s;"
+            style="padding: 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.3s;"
           >
             <div style="display: flex; align-items: center; justify-content: space-between;">
               <div style="flex: 1;">
-                <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 6px; display: flex; align-items: center;">
-                  <span :style="{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: selectedDatabaseIndex === index ? '#10b981' : '#64748b',
+                <div style="font-weight: 600; color: #333; margin-bottom: 4px; display: flex; align-items: center;">
+                  <span :style="{ 
+                    width: '12px', 
+                    height: '12px', 
+                    borderRadius: '50%', 
+                    backgroundColor: selectedDatabaseIndex === index ? '#67c23a' : '#ddd',
                     marginRight: '8px',
-                    transition: 'all 0.3s',
-                    boxShadow: selectedDatabaseIndex === index ? '0 0 8px rgba(16, 185, 129, 0.5)' : 'none'
+                    transition: 'all 0.3s'
                   }"></span>
                   用户: {{ db.username }}
-                  <span v-if="index === 0" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-size: 10px; padding: 3px 8px; border-radius: 4px; margin-left: 8px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">推荐</span>
+                  <span v-if="index === 0" style="background: #67c23a; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">推荐</span>
                 </div>
-                <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">
-                  📁 路径: {{ db.path }}
+                <div style="font-size: 12px; color: #666; margin-bottom: 2px;">
+                  路径: {{ db.path }}
                 </div>
-                <div style="display: flex; gap: 16px; font-size: 11px; color: #64748b;">
-                  <span>💾 大小: {{ formatFileSize(db.size) }}</span>
-                  <span>🕒 修改时间: {{ formatModifiedTime(db.modified) }}</span>
+                <div style="display: flex; gap: 16px; font-size: 11px; color: #999;">
+                  <span>大小: {{ formatFileSize(db.size) }}</span>
+                  <span>修改时间: {{ formatModifiedTime(db.modified) }}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div style="margin-top: 16px; padding: 14px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; font-size: 13px; color: #93c5fd; line-height: 1.6;">
-          <strong style="color: #60a5fa;">💡 提示：</strong>推荐选择最近修改的数据库（已按修改时间排序）。如果您经常使用特定用户的Kiro，请选择该用户的数据库。
+        <div style="margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px; font-size: 13px; color: #666;">
+          <strong>提示：</strong>推荐选择最近修改的数据库（已按修改时间排序）。如果您经常使用特定用户的Cursor，请选择该用户的数据库。
         </div>
 
         <div class="dialog-buttons" style="margin-top: 20px;">
@@ -2169,40 +2175,40 @@
       <div class="dialog-content1 popup-dialog" style="width: 600px; max-width: 90%;">
         <div class="dialog-title" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
           <span>{{ popup.title }}</span>
-          <button @click="closePopup" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; padding: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: color 0.3s;" title="关闭">
+          <button @click="closePopup" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999; padding: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: color 0.3s;" title="关闭">
             ×
           </button>
         </div>
 
         <div class="popup-content" style="padding: 16px 20px; max-height: 400px; overflow-y: auto;">
-
+          
           <!-- 上半部分：更新信息 -->
-          <div v-if="popup.updateInfo" class="popup-section popup-update-section" style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.5) 100%); border: 1px solid rgba(100, 116, 139, 0.4); padding: 14px 16px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-              <span style="font-size: 18px; margin-right: 8px;">📅</span>
-              <span style="font-weight: 600; color: #ffffff; font-size: 15px;">最近更新提醒</span>
+          <div v-if="popup.updateInfo" class="popup-section popup-update-section" style="background: linear-gradient(135deg, #fff8e1 0%, #fffbf0 100%); border-left: 3px solid #ff9800; padding: 12px 14px; border-radius: 6px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 18px; margin-right: 6px;">📅</span>
+              <span style="font-weight: 600; color: #e65100; font-size: 14px;">最近更新提醒</span>
             </div>
-            <div style="white-space: pre-wrap; line-height: 1.7; color: #e2e8f0; font-size: 13px;">{{ popup.updateInfo }}</div>
+            <div style="white-space: pre-wrap; line-height: 1.6; color: #5d4037; font-size: 13px;">{{ popup.updateInfo }}</div>
           </div>
 
           <!-- 虚线分割线 -->
-          <div v-if="popup.updateInfo && popup.otherInfo" style="border-top: 2px dashed rgba(148, 163, 184, 0.3); margin: 14px 0; position: relative;">
-            <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 0 12px; color: #94a3b8; font-size: 11px;">
+          <div v-if="popup.updateInfo && popup.otherInfo" style="border-top: 2px dashed #e0e0e0; margin: 14px 0; position: relative;">
+            <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 12px; color: #999; font-size: 11px;">
               ⬇️
             </div>
           </div>
 
           <!-- 下半部分：其他信息 -->
-          <div v-if="popup.otherInfo" class="popup-section popup-other-section" style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.5) 100%); border: 1px solid rgba(100, 116, 139, 0.4); padding: 14px 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-              <span style="font-size: 18px; margin-right: 8px;">ℹ️</span>
-              <span style="font-weight: 600; color: #ffffff; font-size: 15px;">其他通知</span>
+          <div v-if="popup.otherInfo" class="popup-section popup-other-section" style="background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%); border-left: 3px solid #2196f3; padding: 12px 14px; border-radius: 6px;">
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 18px; margin-right: 6px;">ℹ️</span>
+              <span style="font-weight: 600; color: #1565c0; font-size: 14px;">其他通知</span>
             </div>
-            <div style="white-space: pre-wrap; line-height: 1.7; color: #e2e8f0; font-size: 13px;">{{ popup.otherInfo }}</div>
+            <div style="white-space: pre-wrap; line-height: 1.6; color: #263238; font-size: 13px;">{{ popup.otherInfo }}</div>
           </div>
 
           <!-- 兼容旧版本：如果没有新字段，显示旧的content -->
-          <div v-if="!popup.updateInfo && !popup.otherInfo && popup.content" style="white-space: pre-wrap; line-height: 1.7; color: #e2e8f0; font-size: 13px;">
+          <div v-if="!popup.updateInfo && !popup.otherInfo && popup.content" style="white-space: pre-wrap; line-height: 1.6; color: #333; font-size: 13px;">
             {{ popup.content }}
           </div>
 
@@ -2271,7 +2277,7 @@
             <li><strong>关闭</strong>当前程序</li>
             <li><strong>右键</strong>程序图标</li>
             <li>选择"<strong>以管理员身份运行</strong>"</li>
-            <li>重新点击"<strong>刷新Kiro</strong>"按钮</li>
+            <li>重新点击"<strong>刷新Cursor</strong>"按钮</li>
           </ol>
         </div>
         <div class="permission-alert-buttons">
@@ -2282,33 +2288,33 @@
       </div>
     </div>
 
-    <!-- Kiro初始化提示框 -->
-    <div v-if="showKiroInitAlert" class="Kiro-init-alert-overlay">
-      <div class="Kiro-init-alert-box">
-        <div class="Kiro-init-alert-icon">
+    <!-- Cursor初始化提示框 -->
+    <div v-if="showCursorInitAlert" class="cursor-init-alert-overlay">
+      <div class="cursor-init-alert-box">
+        <div class="cursor-init-alert-icon">
           💡
         </div>
-        <div class="Kiro-init-alert-title">未找到Kiro数据库</div>
-        <div class="Kiro-init-alert-content">
-          <p>系统未找到Kiro数据库文件，可能的原因：</p>
+        <div class="cursor-init-alert-title">未找到Cursor数据库</div>
+        <div class="cursor-init-alert-content">
+          <p>系统未找到Cursor数据库文件，可能的原因：</p>
           <ol>
-            <li>Kiro<strong>尚未运行过</strong>或未完成初始化</li>
-            <li>Kiro数据库位于<strong>其他盘符</strong>的AppData文件夹中</li>
+            <li>Cursor<strong>尚未运行过</strong>或未完成初始化</li>
+            <li>Cursor数据库位于<strong>其他盘符</strong>的AppData文件夹中</li>
             <li>使用了<strong>非标准安装路径</strong></li>
           </ol>
-          <div class="Kiro-init-tip">
+          <div class="cursor-init-tip">
             <strong>解决方案：</strong>
           </div>
           <ol style="margin-top: 8px;">
-            <li>确保Kiro已正常运行过至少一次</li>
+            <li>确保Cursor已正常运行过至少一次</li>
             <li>或点击下方"手动搜索"按钮指定搜索路径</li>
           </ol>
         </div>
-        <div class="Kiro-init-alert-buttons" style="display: flex; gap: 12px; justify-content: center;">
-          <button class="Kiro-init-alert-btn secondary" @click="manualSearchDatabase" :disabled="isSearching">
+        <div class="cursor-init-alert-buttons" style="display: flex; gap: 12px; justify-content: center;">
+          <button class="cursor-init-alert-btn secondary" @click="manualSearchDatabase" :disabled="isSearching">
             {{ isSearching ? '搜索中...' : '手动搜索' }}
           </button>
-          <button class="Kiro-init-alert-btn" @click="closeKiroInitAlert">
+          <button class="cursor-init-alert-btn" @click="closeCursorInitAlert">
             我知道了
           </button>
         </div>
@@ -2328,7 +2334,7 @@
             <li><strong>关闭魔法</strong>或代理软件</li>
             <li><strong>断开代理连接</strong>（如有使用）</li>
             <li><strong>重新启动续杯工具</strong></li>
-            <li>重新点击"<strong>刷新Kiro</strong>"按钮</li>
+            <li>重新点击"<strong>刷新Cursor</strong>"按钮</li>
           </ol>
           <div class="proxy-tip">
             <strong>提示：</strong>代理或魔法可能会阻止程序正常访问续杯服务器
@@ -2450,100 +2456,6 @@
       </div>
     </div>
 
-    <!-- 用户协议弹窗 -->
-    <div v-if="showAgreementDialog" class="dialog-overlay" style="z-index: 10001;">
-      <div class="dialog-content" style="width: 580px; max-width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0;">
-        <div class="dialog-title" style="display: flex; align-items: center; justify-content: center; padding: 16px 20px; border-bottom: 1px solid rgba(148, 163, 184, 0.2); flex-shrink: 0;">
-          <span style="font-size: 18px; font-weight: 700; color: #38bdf8;">📜 用户协议与免责声明</span>
-        </div>
-        
-        <div ref="agreementContent" @scroll="onAgreementScroll" style="flex: 1; overflow-y: auto; padding: 20px; min-height: 0;">
-          <div style="font-size: 13px; line-height: 1.8; color: #ccc;">
-            <p style="margin-bottom: 12px; color: #f0a020; font-weight: bold;">⚠️ 重要提示：请在使用本软件前仔细阅读以下声明</p>
-            
-            <p style="margin-bottom: 10px;"><strong>1. 软件修改授权与免责声明</strong></p>
-            <p style="margin-bottom: 12px; padding-left: 12px;">本软件运行时将对您本地安装的 Kiro 编辑器相关文件进行必要的修改，以实现账号切换功能。您确认知晓此行为为您合法使用软件的前提，并<span style="color: #4ec9b0;">完全合法、主动授权</span>本软件执行上述修改操作。您确认此类操作是依您个人意愿完成的，<span style="color: #4ec9b0;">无关任何问题、纠纷或任何争议</span>。</p>
-            
-            <p style="margin-bottom: 10px;"><strong>2. 计算机安全及隐合规声明</strong></p>
-            <p style="margin-bottom: 12px; padding-left: 12px;">您确认已了解《中华人民共和国网络安全法》《计算机软件条例维权条例和安保法规》等相关安保法规定，并表示：<br>
-            • 您将本合著软件用于合法的使用和软件用途<br>
-            • 您愿意在本计算机上运行软件运行合法情况<br>
-            • 您愿期并承担因软件或改引起产生的一切后果<br>
-            • 您不会以"安装授权将计算机"为由追究开发者任何技术操控及违规操控</p>
-            
-            <p style="margin-bottom: 10px;"><strong>3. 数据安全承诺</strong></p>
-            <p style="margin-bottom: 12px; padding-left: 12px;">本软件<span style="color: #4ec9b0;">不会收集、读取、上传或以任何方式获取</span>您的项目代码、源文件、个人文件及任何敏感数据。软件仅与授权服务器进行必要的通信验证您账号的正确方式，传输文件除保存的合法缓存外，不存在数据泄漏。</p>
-            
-            <p style="margin-bottom: 10px;"><strong>4. 使用风险告知</strong></p>
-            <p style="margin-bottom: 12px; padding-left: 12px;">使用本软件可能存在以下风险，您明确知晓并自愿承担：<br>
-            • Kiro 官方更新后可能导致软件功能失效<br>
-            • 修改操作可能影响 Kiro 的正常运行导致崩溃<br>
-            • 您的账号可能因违反 Kiro 服务条款而受到封禁<br>
-            • 可能因无法修改文件而停留在安全状态<br>
-            • 可能影响软件的官方版本支持服务</p>
-            
-            <p style="margin-bottom: 10px;"><strong>5. 责任限制与免责</strong></p>
-            <p style="margin-bottom: 12px; padding-left: 12px;">本软件按"现状"和"已有"基础提供，不对任何因使用此函数执行。开发者<span style="color: #4ec9b0;">不对因使用本软件而导致的任何直接、间接、偶然、特殊或后果性损失承担责任</span>，包括但不限于数据丢失、软件故障、账户封禁、业务中断、利润损失、计算机危险损坏等。即开发者的最终责任限额将在任何支持的一切赔偿损失。</p>
-            
-            <p style="margin-bottom: 10px;"><strong>6. 合法使用限制条款</strong></p>
-            <p style="margin-bottom: 12px; padding-left: 12px;">您承诺将本软件用于合法、合规用途，不得利用本软件从事任何违法违规活动、规则滥用等。滥用所或不当使用所产生的一切法律责任、社内风险及不利后果均由您本人独立承担。</p>
-            
-            <p style="margin-bottom: 10px;"><strong>7. 明确授权与界限声明</strong></p>
-            <p style="margin-bottom: 12px; padding-left: 12px;">点击"同意并继续"即表示您已：<br>
-            • 完全阅读、理解并接受本声明的全部内容<br>
-            • 确认已<span style="color: #4ec9b0;">完全知晓、自愿且主动</span>地同意以下授权本软件<br>
-            • 明确知晓本软件可能存在的风险并愿意自行承担全部责任<br>
-            • 自愿承担所有使用风险和可能的不利后果<br>
-            • 放弃以"未被告知风险"、"不知情"作为由向开发者主张任何权利的权利<br>
-            • 同意本声明将作为具有法律效力的协议约束双方</p>
-            
-            <p style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #444; color: #888; font-size: 12px;">
-              本声明构成具有法律效力的协议 | 最终解释权归软件开发者所有 | 更新日期：2025年12月03日
-            </p>
-          </div>
-        </div>
-        
-        <div style="padding: 16px 20px; border-top: 1px solid rgba(148, 163, 184, 0.2); flex-shrink: 0;">
-          <!-- 已阅读复选框 -->
-          <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <label 
-              style="display: flex; align-items: center; user-select: none;"
-              :style="{ cursor: agreementScrolledToBottom ? 'pointer' : 'not-allowed', opacity: agreementScrolledToBottom ? 1 : 0.5 }"
-            >
-              <input 
-                type="checkbox" 
-                v-model="agreementChecked" 
-                :disabled="!agreementScrolledToBottom"
-                style="width: 18px; height: 18px; margin-right: 10px; accent-color: #38bdf8;"
-                :style="{ cursor: agreementScrolledToBottom ? 'pointer' : 'not-allowed' }"
-              >
-              <span style="color: #e2e8f0; font-size: 14px;">
-                {{ agreementScrolledToBottom ? '我已仔细阅读并理解上述全部内容' : '请先滚动阅读完整协议内容 ↓' }}
-              </span>
-            </label>
-          </div>
-          
-          <div class="dialog-buttons" style="gap: 12px;">
-            <button class="dialog-button secondary" @click="rejectAgreement" style="flex: 1;">
-              不同意，退出程序
-            </button>
-            <button 
-              class="dialog-button primary" 
-              @click="acceptAgreement" 
-              :disabled="!agreementChecked"
-              :style="{ 
-                flex: 1, 
-                background: agreementChecked ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #4b5563 0%, #374151 100%)',
-                cursor: agreementChecked ? 'pointer' : 'not-allowed',
-                opacity: agreementChecked ? 1 : 0.6
-              }">
-              同意并继续
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
 
   </div>
   <script>
@@ -2592,11 +2504,11 @@
             usedAccounts: 0,
             remainingAccounts: 0,
             expiryTime: '未授权',
-            KiroPaths: null,
-            KiroVersion: '未检测',
+            cursorPaths: null,
+            cursorVersion: '未检测',
             settings: {
               debugMode: false,
-              customKiroPath: ''
+              customCursorPath: ''
             },
             // 对话框相关
             showCardDialog: false,
@@ -2606,7 +2518,7 @@
             verificationStatus: null,
             // 设置相关
             tempSettings: {
-              customKiroPath: ''
+              customCursorPath: ''
             },
             isSelectingPath: false, // 添加一个标记，表示是否正在选择路径
             // 卡密有效期相关
@@ -2639,9 +2551,9 @@
             // 禁用更新按钮状态
             disableUpdateCooldown: false,
             disableUpdateCountdown: 0,
-            // 刷新Kiro按钮状态
-            refreshKiroCooldown: false,
-            refreshKiroCountdown: 0,
+            // 刷新Cursor按钮状态
+            refreshCursorCooldown: false,
+            refreshCursorCountdown: 0,
             // 数据库选择对话框
             showDatabaseDialog: false,
             availableDatabases: [],
@@ -2654,27 +2566,26 @@
             },
             // 权限提示框
             showPermissionAlert: false,
-            // Kiro未初始化提示框
-            showKiroInitAlert: false,
+            // Cursor未初始化提示框
+            showCursorInitAlert: false,
             // 代理提示框
             showProxyAlert: false,
             // 手动搜索状态
             isSearching: false,
+            // 突破地区限制选项
+            enableRegionUnlock: false,
+            // 防止watch循环触发
+            isUpdatingRegionUnlock: false,
             // 卡密过期/失效状态
             cardExpired: false,
             cardExpiredMessage: '',
             // 版本检查相关
-            currentVersion: '1.0', // 当前版本号，需要与显示的版本号保持一致
+            currentVersion: '6.3', // 当前版本号，需要与显示的版本号保持一致
             latestVersion: null,   // 最新版本号
             hasNewVersion: false,  // 是否有新版本
             latestVersionInfo: null, // 最新版本完整信息
             showVersionDialog: false, // 是否显示版本更新对话框
-            versionCompareResult: 0, // 版本比较结果：-1表示有新版本，0表示版本相同，1表示当前版本更高
-            // 用户协议相关
-            showAgreementDialog: false, // 是否显示协议弹窗
-            agreementChecked: false, // 用户是否勾选了“已阅读”复选框
-            agreementAgreed: false, // 用户是否已同意协议
-            agreementScrolledToBottom: false // 是否已滚动到协议底部
+            versionCompareResult: 0 // 版本比较结果：-1表示有新版本，0表示版本相同，1表示当前版本更高
           }
         },
         computed: {
@@ -2886,7 +2797,7 @@
           async initApp() {
             try {
               // 初始化应用
-              console.log('欢迎使用Kiro续杯工具 v1.0');
+              console.log('欢迎使用Cursor续杯工具 v6.3');
               console.log('基于Python项目逻辑重构版本');
               
               // 安全机制：确保启动时所有对话框都是关闭状态
@@ -2910,9 +2821,9 @@
               this.updateLoadingStatus('正在加载配置...', '读取应用设置中...');
               await this.loadAppSettings();
 
-              // 自动检测Kiro版本
-              this.updateLoadingStatus('正在检测Kiro...', '正在查找Kiro安装路径...');
-              await this.detectKiroVersion();
+              // 自动检测Cursor版本
+              this.updateLoadingStatus('正在检测Cursor...', '正在查找Cursor安装路径...');
+              await this.detectCursorVersion();
 
               // 检查本地缓存的授权码
               this.updateLoadingStatus('正在加载授权信息...', '检查本地缓存...');
@@ -2922,16 +2833,6 @@
               this.updateLoadingStatus('正在获取最新公告...', '连接服务器中，请稍候...');
               await this.loadLatestNotice();
 
-              // 检查用户协议同意状态
-              this.updateLoadingStatus('正在检查用户协议...', '验证协议状态...');
-              const agreementAccepted = await this.checkAndShowAgreement();
-              
-              // 如果用户未同意协议，停止后续初始化（用户需要先同意协议）
-              if (!agreementAccepted) {
-                console.log('等待用户同意协议...');
-                return; // 暂停初始化，等待用户同意协议后继续
-              }
-
               // 获取并显示启动弹窗
               this.updateLoadingStatus('正在加载弹窗信息...', '获取最新通知...');
               await this.loadAndShowPopup();
@@ -2939,6 +2840,10 @@
               // 获取程序权限信息
               this.updateLoadingStatus('正在检查权限...', '验证程序权限状态...');
               await this.loadPermissionInfo();
+
+              // 检查地区限制突破开关状态
+              this.updateLoadingStatus('正在检查代理状态...', '检测地区限制设置...');
+              await this.checkRegionUnlockStatus();
 
               // 检查版本更新
               this.updateLoadingStatus('正在检查更新...', '获取最新版本信息...');
@@ -2972,32 +2877,32 @@
             }
           },
 
-          // 自动检测Kiro版本
-          async detectKiroVersion() {
+          // 自动检测Cursor版本
+          async detectCursorVersion() {
             try {
-              console.log('正在检测Kiro版本...');
+              console.log('正在检测Cursor版本...');
 
-              // 获取Kiro安装路径和版本信息
-              const pathsResult = await ipcRenderer.invoke('get-Kiro-paths');
+              // 获取Cursor安装路径和版本信息
+              const pathsResult = await ipcRenderer.invoke('get-cursor-paths');
 
               if (pathsResult.error) {
-                console.error('检测Kiro版本失败:', pathsResult.error);
-                this.KiroVersion = '未检测';
-                ElMessage.warning('未检测到Kiro安装，请确保Kiro已正确安装');
+                console.error('检测Cursor版本失败:', pathsResult.error);
+                this.cursorVersion = '未检测';
+                ElMessage.warning('未检测到Cursor安装，请确保Cursor已正确安装');
                 return;
               }
 
-              // 更新Kiro路径和版本信息
-              this.KiroPaths = pathsResult;
-              this.KiroVersion = pathsResult.version || '未知版本';
+              // 更新Cursor路径和版本信息
+              this.cursorPaths = pathsResult;
+              this.cursorVersion = pathsResult.version || '未知版本';
 
-              console.log(`检测到Kiro版本: ${this.KiroVersion}`);
-              console.log(`Kiro安装路径: ${pathsResult.basePath}`);
+              console.log(`检测到Cursor版本: ${this.cursorVersion}`);
+              console.log(`Cursor安装路径: ${pathsResult.basePath}`);
 
             } catch (error) {
-              console.error('检测Kiro版本时发生错误:', error);
-              this.KiroVersion = '检测失败';
-              ElMessage.error('检测Kiro版本时发生错误');
+              console.error('检测Cursor版本时发生错误:', error);
+              this.cursorVersion = '检测失败';
+              ElMessage.error('检测Cursor版本时发生错误');
             }
           },
 
@@ -3037,7 +2942,9 @@
                   }
 
                   ElMessage.success('已自动加载保存的卡密信息');
-
+                  
+                  // 卡密加载成功后，重新检查地区限制突破状态
+                  await this.checkRegionUnlockStatus();
                   return;
                 } else {
                   console.log('JSON文件中的卡密验证失败，清除文件');
@@ -3048,7 +2955,7 @@
               }
 
               // 如果JSON文件加载失败，尝试localStorage（兼容旧版本）
-              const cachedCode = localStorage.getItem('Kiro_auth_code');
+              const cachedCode = localStorage.getItem('cursor_auth_code');
               if (cachedCode) {
                 console.log('发现localStorage中的授权码，正在验证...');
 
@@ -3094,13 +3001,16 @@
                   await ipcRenderer.invoke('save-card-info', saveData);
 
                   // 清除localStorage
-                  localStorage.removeItem('Kiro_auth_code');
+                  localStorage.removeItem('cursor_auth_code');
                   console.log('已将localStorage数据迁移到JSON文件');
 
                   ElMessage.success('已自动加载并迁移授权码');
+                  
+                  // 卡密加载成功后，重新检查地区限制突破状态
+                  await this.checkRegionUnlockStatus();
                 } else {
                   console.log('localStorage中的授权码验证失败，清除缓存');
-                  localStorage.removeItem('Kiro_auth_code');
+                  localStorage.removeItem('cursor_auth_code');
                   this.cardVerified = false;
                   // 卡密验证失败，自动关闭代理
                   await this.autoDisableProxy('localStorage中的卡密验证失败');
@@ -3111,7 +3021,7 @@
             } catch (error) {
               console.error('检查缓存授权码失败:', error);
               // 如果验证失败，清除可能损坏的缓存
-              localStorage.removeItem('Kiro_auth_code');
+              localStorage.removeItem('cursor_auth_code');
               await ipcRenderer.invoke('clear-card-info');
               this.cardVerified = false;
               // 验证失败，自动关闭代理
@@ -3121,9 +3031,9 @@
 
           async pythonStyleRenewal() {
             // 检查是否在冷却期间
-            if (this.refreshKiroCooldown) {
-              const minutes = Math.floor(this.refreshKiroCountdown / 60);
-              const seconds = this.refreshKiroCountdown % 60;
+            if (this.refreshCursorCooldown) {
+              const minutes = Math.floor(this.refreshCursorCountdown / 60);
+              const seconds = this.refreshCursorCountdown % 60;
               ElMessage.warning(`请等待 ${minutes}:${String(seconds).padStart(2, '0')} 后再试`);
               return;
             }
@@ -3135,11 +3045,11 @@
                   <div class="tip-icon">⏳</div>
                   <div class="tip-title">温馨提示</div>
                   <div class="tip-message">
-                    <p class="tip-main">刷新完成后，Kiro 需要一点时间"加载"～</p>
+                    <p class="tip-main">刷新完成后，Cursor 需要一点时间"加载"～</p>
                     <div class="tip-steps">
                       <div class="tip-step">
                         <span class="step-icon">🚀</span>
-                        <span class="step-text">刷新完成后，Kiro 会自动启动</span>
+                        <span class="step-text">刷新完成后，Cursor 会自动启动</span>
                       </div>
                       <div class="tip-step">
                         <span class="step-icon">⏰</span>
@@ -3147,7 +3057,7 @@
                       </div>
                       <div class="tip-step">
                         <span class="step-icon">✨</span>
-                        <span class="step-text">Kiro完全加载后再继续进行对话！</span>
+                        <span class="step-text">Cursor完全加载后再继续进行对话！</span>
                       </div>
                     </div>
                     <div class="tip-footer">
@@ -3160,7 +3070,7 @@
                 {
                   confirmButtonText: '我知道了，继续 ✓',
                   cancelButtonText: '取消',
-                  customClass: 'Kiro-refresh-tip',
+                  customClass: 'cursor-refresh-tip',
                   dangerouslyUseHTMLString: true,
                   showClose: false,
                   closeOnClickModal: false,
@@ -3186,20 +3096,20 @@
               this.stepStatus[0] = 'processing';
               console.log('正在验证授权码...');
 
-              // 获取Kiro安装路径
-              const pathsResult = await ipcRenderer.invoke('get-Kiro-paths');
+              // 获取Cursor安装路径
+              const pathsResult = await ipcRenderer.invoke('get-cursor-paths');
 
               if (pathsResult.error) {
                 throw new Error(pathsResult.error);
               }
 
-              this.KiroPaths = pathsResult;
-              this.KiroVersion = pathsResult.version || '未知版本';
-              console.log(`找到Kiro安装路径: ${this.KiroPaths.basePath}`);
-              console.log(`Kiro版本: ${this.KiroVersion}`);
+              this.cursorPaths = pathsResult;
+              this.cursorVersion = pathsResult.version || '未知版本';
+              console.log(`找到Cursor安装路径: ${this.cursorPaths.basePath}`);
+              console.log(`Cursor版本: ${this.cursorVersion}`);
 
-              // 续杯卡密（调用 renew-card 接口，会返回账号信息）
-              const verifyResult = await ipcRenderer.invoke('renew-card', this.cardCode);
+              // 验证卡密
+              const verifyResult = await ipcRenderer.invoke('verify-card', this.cardCode);
 
               if (!verifyResult.success) {
                 const errorMessage = verifyResult.error || '未知错误';
@@ -3231,12 +3141,12 @@
                 } else if (isCardInvalidError) {
                   // 卡密真正失效，关闭代理并禁用功能
                   console.log('检测到卡密失效错误，自动关闭代理配置');
-                  await this.autoDisableProxy('刷新Kiro时卡密验证失败');
+                  await this.autoDisableProxy('刷新Cursor时卡密验证失败');
                   throw new Error(errorMessage);
                 } else {
                   // 其他验证失败错误，为安全起见也关闭代理
                   console.log('检测到其他验证失败错误，自动关闭代理配置');
-                  await this.autoDisableProxy('刷新Kiro时卡密验证失败');
+                  await this.autoDisableProxy('刷新Cursor时卡密验证失败');
                   throw new Error(errorMessage);
                 }
               }
@@ -3267,30 +3177,33 @@
               this.remainingAccounts = (cardInfo.total_count || 50) - this.usedAccounts;
               this.expiryTime = cardInfo.end || cardInfo.expire_time || '未设置';
 
-              // ========== 【重要】第一步：搜索数据库 ==========
+              // 用于保存工作区路径的变量（贯穿整个流程）
+              let savedWorkspace = null;
+
+              // ========== 【重要】第一步：搜索数据库并保存工作区 ==========
               this.stepStatus[1] = 'processing';
               console.log('========== 步骤1：搜索数据库并保存工作区 ==========');
-              console.log('正在搜索Kiro数据库...');
-              ElMessage.info('正在搜索Kiro数据库...');
+              console.log('正在搜索Cursor数据库...');
+              ElMessage.info('正在搜索Cursor数据库...');
 
-              // 搜索所有用户目录中的Kiro数据库
-              const dbSearchResult = await ipcRenderer.invoke('find-all-Kiro-databases');
+              // 搜索所有用户目录中的Cursor数据库
+              const dbSearchResult = await ipcRenderer.invoke('find-all-cursor-databases');
               
               if (!dbSearchResult.success) {
                 throw new Error(`搜索数据库失败: ${dbSearchResult.error}`);
               }
 
               const foundDatabases = dbSearchResult.databases;
-              console.log(`找到 ${foundDatabases.length} 个Kiro数据库`);
+              console.log(`找到 ${foundDatabases.length} 个Cursor数据库`);
 
               if (foundDatabases.length === 0) {
                 // 改进错误提示，提供更多信息
                 console.log('全盘搜索完成但未找到数据库，可能原因:');
-                console.log('1. Kiro尚未运行过或未完成初始化');
-                console.log('2. Kiro数据库位于非标准路径');
+                console.log('1. Cursor尚未运行过或未完成初始化');
+                console.log('2. Cursor数据库位于非标准路径');
                 console.log('3. 数据库文件权限问题');
                 
-                throw new Error('未找到Kiro数据库文件。可能Kiro尚未运行过，或数据库位于非标准路径。建议使用手动搜索功能。');
+                throw new Error('未找到Cursor数据库文件。可能Cursor尚未运行过，或数据库位于非标准路径。建议使用手动搜索功能。');
               }
 
               let selectedDatabase;
@@ -3299,7 +3212,7 @@
                 // 只有一个数据库，直接使用
                 selectedDatabase = foundDatabases[0];
                 console.log(`✓ 使用唯一的数据库: ${selectedDatabase.username} (${selectedDatabase.path})`);
-                ElMessage.info(`使用用户 ${selectedDatabase.username} 的Kiro数据库`);
+                ElMessage.info(`使用用户 ${selectedDatabase.username} 的Cursor数据库`);
               } else {
                 // 多个数据库，让用户选择
                 console.log('找到多个数据库，让用户选择...');
@@ -3312,60 +3225,74 @@
                 }
               }
 
-              // ========== 步骤2：关闭Kiro ==========
-              console.log('========== 步骤2：关闭Kiro ==========');
+              // ========== 步骤2：保存工作区并关闭Cursor ==========
+              console.log('========== 步骤2：保存工作区并关闭Cursor ==========');
               
               try {
-                const isRunning = await ipcRenderer.invoke('check-Kiro-running');
+                const isRunning = await ipcRenderer.invoke('check-cursor-running');
 
                 if (isRunning) {
-                  console.log('✓ 检测到Kiro正在运行');
+                  console.log('✓ 检测到Cursor正在运行');
                   
-                  // 现在关闭Kiro（会循环检测直到所有进程完全关闭）
-                  console.log('正在强制关闭Kiro（将确保所有进程完全关闭）...');
-                  ElMessage.warning('正在关闭Kiro，请稍候...');
+                  // 在关闭前，先保存当前工作区路径
+                  console.log('正在保存当前工作区路径...');
+                  try {
+                    const saveResult = await ipcRenderer.invoke('save-current-workspace', selectedDatabase.path);
+                    if (saveResult.success) {
+                      savedWorkspace = saveResult.workspace;
+                      console.log(`✓ 工作区路径已保存: ${savedWorkspace}`);
+                    } else {
+                      console.warn('⚠ 保存工作区失败:', saveResult.error);
+                    }
+                  } catch (saveError) {
+                    console.warn('⚠ 保存工作区时出错:', saveError);
+                  }
                   
-                  const closeResult = await ipcRenderer.invoke('force-close-Kiro');
+                  // 现在关闭Cursor（会循环检测直到所有进程完全关闭）
+                  console.log('正在强制关闭Cursor（将确保所有进程完全关闭）...');
+                  ElMessage.warning('正在关闭Cursor，请稍候...');
+                  
+                  const closeResult = await ipcRenderer.invoke('force-close-cursor');
                   if (closeResult.success) {
-                    console.log('✓ 所有Kiro进程已确认完全关闭');
-                    ElMessage.success('Kiro已完全关闭');
+                    console.log('✓ 所有Cursor进程已确认完全关闭');
+                    ElMessage.success('Cursor已完全关闭');
                     // 额外等待1秒确保数据库锁完全释放
                     console.log('等待1秒以确保数据库锁完全释放...');
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     console.log('✓ 准备就绪，可以继续执行后续操作');
                   } else {
                     // 进程关闭失败，这是严重问题，应该终止流程
-                    console.error('✗ 无法关闭所有Kiro进程:', closeResult.error);
+                    console.error('✗ 无法关闭所有Cursor进程:', closeResult.error);
                     
                     if (closeResult.warning) {
                       // 这是警告级别的失败，给用户选择是否继续
                       ElMessage.error({
-                        message: closeResult.error + '。建议手动关闭所有Kiro窗口后重试！',
+                        message: closeResult.error + '。建议手动关闭所有Cursor窗口后重试！',
                         duration: 5000
                       });
                     } else {
                       ElMessage.error({
-                        message: '关闭Kiro进程失败：' + closeResult.error,
+                        message: '关闭Cursor进程失败：' + closeResult.error,
                         duration: 5000
                       });
                     }
                     
                     // 抛出错误以终止流程
-                    throw new Error('无法确保Kiro进程完全关闭，为避免数据库冲突，流程已终止');
+                    throw new Error('无法确保Cursor进程完全关闭，为避免数据库冲突，流程已终止');
                   }
                 } else {
-                  console.log('✓ Kiro未运行，无需关闭');
-                  ElMessage.info('Kiro未运行，直接执行后续操作');
+                  console.log('✓ Cursor未运行，无需关闭');
+                  ElMessage.info('Cursor未运行，直接执行后续操作');
                 }
               } catch (closeError) {
-                console.error('✗ 检查或关闭Kiro时出错:', closeError);
+                console.error('✗ 检查或关闭Cursor时出错:', closeError);
                 // 如果是我们抛出的错误，直接抛出
-                if (closeError.message.includes('无法确保Kiro进程完全关闭')) {
+                if (closeError.message.includes('无法确保Cursor进程完全关闭')) {
                   throw closeError;
                 }
                 // 其他错误显示警告
-                ElMessage.warning('检查或关闭Kiro时出错：' + closeError.message);
-                throw new Error('关闭Kiro过程出现异常');
+                ElMessage.warning('检查或关闭Cursor时出错：' + closeError.message);
+                throw new Error('关闭Cursor过程出现异常');
               }
 
               // 步骤3: 退出当前登录账号
@@ -3374,7 +3301,7 @@
               
               // 步骤3.1: 退出当前登录的账号
               try {
-                const logoutResult = await ipcRenderer.invoke('logout-current-Kiro-account', selectedDatabase.path);
+                const logoutResult = await ipcRenderer.invoke('logout-current-cursor-account', selectedDatabase.path);
                 if (logoutResult.success) {
                   console.log('✓ 当前账号退出成功:', logoutResult.message);
                   console.log('✓ 已清除的登录信息键:', logoutResult.deletedKeys);
@@ -3387,16 +3314,15 @@
 
               // 步骤4: 执行账号切换、重置机器ID、修改注册表
               console.log('========== 步骤4：账号切换+重置机器ID+修改注册表 ==========');
-              console.log(`正在执行 Kiro 账号切换...`);
-              console.log(`邮箱: ${accountInfo.email}`);
-              console.log(`密码: ${accountInfo.pwd ? '已提供' : '未提供'}`);
+              console.log(`正在执行Python风格账号切换...`);
+              console.log(`目标数据库: ${selectedDatabase.path}`);
 
-              // 步骤4.1: 执行新的账号切换（使用 kiro-auth.js）
-              const switchResult = await ipcRenderer.invoke('windsurf-account-switch',
-                accountInfo.email || `user_${Date.now()}@Kirorenew.com`,
-                accountInfo.refreshToken,
-                accountInfo.clientId,
-                accountInfo.clientSecret
+              // 步骤4.1: 执行Python风格账号切换（包含机器ID重置和注册表修改）
+              const switchResult = await ipcRenderer.invoke('python-style-account-switch',
+                selectedDatabase.path,
+                accountInfo.email || `user_${Date.now()}@cursorrenew.com`,
+                accountInfo.token || `token_${Date.now()}`,
+                accountInfo.token || `token_${Date.now()}`
               );
 
               if (!switchResult.success) {
@@ -3404,45 +3330,62 @@
               }
 
               this.stepStatus[1] = 'completed';
-              console.log('✓ Kiro 账号切换成功！');
-              console.log(`✓ 邮箱: ${switchResult.email}`);
-              console.log(`✓ Access Token: ${switchResult.accessToken ? switchResult.accessToken.substring(0, 50) + '...' : '无'}`);
-              console.log(`✓ 过期时间: ${switchResult.expiresAt}`);
+              console.log('✓ Python风格账号切换成功！');
+              console.log(`✓ 更新的键: ${switchResult.updatedKeys?.join(', ') || '无'}`);
 
               // 步骤4.2: 记录使用
               await ipcRenderer.invoke('record-usage', this.cardCode);
 
-              // 步骤5: 最后启动Kiro（使用保存的工作区）
-              console.log('========== 步骤5：最后启动Kiro ==========');
-              console.log('所有修改已完成，正在启动Kiro...');
+              // 步骤5: 最后启动Cursor（使用保存的工作区）
+              console.log('========== 步骤5：最后启动Cursor ==========');
+              console.log('所有修改已完成，正在启动Cursor...');
 
               try {
                 // 等待1秒确保所有文件都保存完毕
                 console.log('等待1秒以确保所有文件保存...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // 启动Kiro
-                const launchResult = await ipcRenderer.invoke('launch-Kiro', null);
+                // 如果之前没有保存工作区（Cursor未运行），尝试从文件读取
+                if (!savedWorkspace) {
+                  console.log('尝试从备份文件读取工作区路径...');
+                  try {
+                    const loadResult = await ipcRenderer.invoke('load-saved-workspace', selectedDatabase.path);
+                    if (loadResult.success && loadResult.workspace) {
+                      savedWorkspace = loadResult.workspace;
+                      console.log(`✓ 从备份读取到工作区: ${savedWorkspace}`);
+                    }
+                  } catch (loadError) {
+                    console.warn('⚠ 读取工作区备份失败:', loadError);
+                  }
+                }
+                
+                // 启动Cursor，如果有保存的工作区则使用
+                const launchResult = await ipcRenderer.invoke('launch-cursor', savedWorkspace);
 
                 if (launchResult.success) {
-                  console.log('✓ Kiro启动成功');
-                  ElMessage.success('🎉 续杯成功！Kiro已启动并应用新账号');
+                  if (savedWorkspace) {
+                    console.log('✓ Cursor启动成功（已恢复工作区）');
+                    ElMessage.success(`🎉 续杯成功！Cursor已启动并恢复到项目`);
+                  } else {
+                    console.log('✓ Cursor启动成功');
+                    ElMessage.success('🎉 续杯成功！Cursor已启动并应用新账号');
+                  }
                 } else {
-                  console.error('✗ Kiro启动失败:', launchResult.error);
-                  ElMessage.warning(`续杯成功！但Kiro启动失败: ${launchResult.error}，请手动启动Kiro`);
+                  console.error('✗ Cursor启动失败:', launchResult.error);
+                  ElMessage.warning(`续杯成功！但Cursor启动失败: ${launchResult.error}，请手动启动Cursor`);
                 }
 
               } catch (launchError) {
-                console.error('✗ Kiro启动流程出错:', launchError);
-                ElMessage.warning('续杯成功！但Kiro启动失败，请手动启动Kiro');
+                console.error('✗ Cursor启动流程出错:', launchError);
+                ElMessage.warning('续杯成功！但Cursor启动失败，请手动启动Cursor');
               }
 
               console.log('========================================');
-              console.log('🎉 Kiro续杯流程全部完成！');
+              console.log('🎉 Cursor续杯流程全部完成！');
               console.log('========================================');
 
-              // 启动5分钟冷却
-              this.startRefreshKiroCooldown();
+              // 启动1分钟冷却
+              this.startRefreshCursorCooldown();
 
             } catch (error) {
               console.error('续杯过程出错:', error);
@@ -3456,14 +3399,18 @@
 
               // 检测错误类型并显示相应提示
               // 注意：卡密验证失败已在上面处理，这里只处理其他类型错误
-              if (error.message && (
+              if (error.message && error.message.includes('Could not locate the bindings file')) {
+                // better-sqlite3权限相关错误
+                console.log('检测到better-sqlite3权限错误，显示管理员权限提示');
+                this.showPermissionAlert = true;
+              } else if (error.message && (
                 error.message.includes('数据库文件不存在') || 
-                error.message.includes('未找到任何Kiro数据库文件') ||
-                error.message.includes('请确保Kiro已正确安装并至少运行过一次')
+                error.message.includes('未找到任何Cursor数据库文件') ||
+                error.message.includes('请确保Cursor已正确安装并至少运行过一次')
               )) {
                 // 数据库文件不存在错误
-                console.log('检测到数据库文件不存在错误，显示Kiro初始化提示');
-                this.showKiroInitAlert = true;
+                console.log('检测到数据库文件不存在错误，显示Cursor初始化提示');
+                this.showCursorInitAlert = true;
               } else if (error.message && error.message.includes('API请求失败')) {
                 // API请求失败错误（通常由代理引起）
                 console.log('检测到API请求失败错误，显示代理关闭提示');
@@ -3477,32 +3424,32 @@
             }
           },
 
-          // 开始刷新Kiro按钮的冷却（5分钟）
-          startRefreshKiroCooldown() {
-            this.refreshKiroCooldown = true;
-            this.refreshKiroCountdown = 300; // 300秒 = 5分钟
+          // 开始刷新Cursor按钮的冷却（1分钟）
+          startRefreshCursorCooldown() {
+            this.refreshCursorCooldown = true;
+            this.refreshCursorCountdown = 60; // 60秒 = 1分钟
 
             const countdown = setInterval(() => {
-              this.refreshKiroCountdown--;
+              this.refreshCursorCountdown--;
 
-              if (this.refreshKiroCountdown <= 0) {
+              if (this.refreshCursorCountdown <= 0) {
                 clearInterval(countdown);
-                this.refreshKiroCooldown = false;
-                this.refreshKiroCountdown = 0;
+                this.refreshCursorCooldown = false;
+                this.refreshCursorCountdown = 0;
               }
             }, 1000);
           },
 
           async openWebsite() {
             try {
-              await ipcRenderer.invoke('open-external-url', 'https://www.xxdlzs.top/kiro');
+              await ipcRenderer.invoke('open-external-url', 'https://www.xxdlzs.top/');
             } catch (error) {
               console.error('打开官网失败:', error);
               ElMessage.error('打开官网失败: ' + error.message);
             }
           },
 
-          // 禁用Kiro自动更新（带10秒冷却）
+          // 禁用Cursor自动更新（带10秒冷却）
           async checkUpdate() {
             // 检查是否在冷却期间
             if (this.disableUpdateCooldown) {
@@ -3514,12 +3461,12 @@
               // 开始冷却
               this.startDisableUpdateCooldown();
 
-              ElMessage.info('正在禁用Kiro自动更新...');
+              ElMessage.info('正在禁用Cursor自动更新...');
 
-              const result = await ipcRenderer.invoke('disable-Kiro-auto-update');
+              const result = await ipcRenderer.invoke('disable-cursor-auto-update');
 
               if (result.success) {
-                ElMessage.success('已成功禁用Kiro自动更新！重启Kiro后生效。');
+                ElMessage.success('已成功禁用Cursor自动更新！重启Cursor后生效。');
                 console.log('禁用自动更新成功:', result);
               } else {
                 ElMessage.error(`禁用自动更新失败: ${result.error}`);
@@ -3548,8 +3495,8 @@
             }, 1000);
           },
 
-          resetKiro() {
-            ElMessage.warning('初始化Kiro功能开发中...');
+          resetCursor() {
+            ElMessage.warning('初始化Cursor功能开发中...');
           },
 
           // 打开设置对话框
@@ -3574,8 +3521,8 @@
             this.isSelectingPath = false; // 确保重置选择路径状态
           },
 
-          // 选择Kiro路径
-          async selectKiroPath() {
+          // 选择Cursor路径
+          async selectCursorPath() {
             try {
               this.isSelectingPath = true; // 设置选择路径状态为true
               
@@ -3591,8 +3538,8 @@
               ]);
               
               if (selectedPath) {
-                this.tempSettings.customKiroPath = selectedPath;
-                console.log('选择的Kiro路径:', selectedPath);
+                this.tempSettings.customCursorPath = selectedPath;
+                console.log('选择的Cursor路径:', selectedPath);
               }
             } catch (error) {
               console.error('选择路径失败:', error);
@@ -3615,7 +3562,7 @@
                 autoActivateOnStartup: this.tempSettings.autoActivateOnStartup || false,
                 debugMode: this.tempSettings.debugMode || false,
                 forceModifyMode: this.tempSettings.forceModifyMode || false,
-                customKiroPath: this.tempSettings.customKiroPath || ''
+                customCursorPath: this.tempSettings.customCursorPath || ''
               };
 
               console.log('准备保存设置:', settingsToSave);
@@ -3628,8 +3575,8 @@
                 ElMessage.success('设置已保存');
                 this.closeSettingsDialog();
 
-                // 重新检测Kiro版本
-                await this.detectKiroVersion();
+                // 重新检测Cursor版本
+                await this.detectCursorVersion();
               } else {
                 throw new Error('保存设置返回失败');
               }
@@ -3741,6 +3688,9 @@
                 setTimeout(async () => {
                   this.closeCardDialog();
                   ElMessage.success('授权码验证成功！');
+                  
+                  // 卡密验证成功后，重新检查地区限制突破状态
+                  await this.checkRegionUnlockStatus();
                 }, 2000);
 
               } else {
@@ -3799,7 +3749,7 @@
               await ipcRenderer.invoke('clear-card-info');
 
               // 清除localStorage（兼容性）
-              localStorage.removeItem('Kiro_auth_code');
+              localStorage.removeItem('cursor_auth_code');
 
               this.cardCode = '';
               this.cardVerified = false;
@@ -4039,8 +3989,8 @@
               return fullUrl;
             }
 
-            // 处理类似 "139.199.225.37/csk/files/..." 的情况
-            if (imagePath.includes('139.199.225.37') || imagePath.match(/^\d+\.\d+\.\d+\.\d+/)) {
+            // 处理类似 "1.14.165.25/csk/files/..." 的情况
+            if (imagePath.includes('1.14.165.25') || imagePath.match(/^\d+\.\d+\.\d+\.\d+/)) {
               const fullUrl = 'http://' + imagePath;
               console.log('🔗 添加http://协议（IP）:', fullUrl);
               return fullUrl;
@@ -4052,7 +4002,7 @@
             return fullUrl;
           },
 
-          // 探索Kiro配置结构函数已移除
+          // 探索Cursor配置结构函数已移除
 
           // 选择数据库
           async selectDatabase(databases) {
@@ -4098,12 +4048,12 @@
             this.showPermissionAlert = false;
           },
 
-          // 关闭Kiro初始化提示框
-          closeKiroInitAlert() {
-            this.showKiroInitAlert = false;
+          // 关闭Cursor初始化提示框
+          closeCursorInitAlert() {
+            this.showCursorInitAlert = false;
           },
 
-          // 手动搜索Kiro数据库
+          // 手动搜索Cursor数据库
           async manualSearchDatabase() {
             try {
               this.isSearching = true;
@@ -4119,16 +4069,16 @@
               }
               
               console.log('用户选择的搜索路径:', searchPath);
-              ElMessage.info('正在搜索Kiro数据库，请稍候...');
+              ElMessage.info('正在搜索Cursor数据库，请稍候...');
               
               // 执行手动搜索
-              const searchResult = await ipcRenderer.invoke('manual-search-Kiro-database', searchPath);
+              const searchResult = await ipcRenderer.invoke('manual-search-cursor-database', searchPath);
               
               if (searchResult.success && searchResult.databases.length > 0) {
                 console.log('手动搜索找到数据库:', searchResult.databases);
                 
                 // 关闭当前提示框
-                this.showKiroInitAlert = false;
+                this.showCursorInitAlert = false;
                 
                 // 如果找到多个数据库，让用户选择
                 if (searchResult.databases.length === 1) {
@@ -4143,7 +4093,7 @@
                 }
                 
               } else if (searchResult.success && searchResult.databases.length === 0) {
-                ElMessage.warning(`在路径 "${searchPath}" 中未找到Kiro数据库文件`);
+                ElMessage.warning(`在路径 "${searchPath}" 中未找到Cursor数据库文件`);
               } else {
                 ElMessage.error(`搜索失败: ${searchResult.error}`);
               }
@@ -4169,12 +4119,12 @@
             this.closeProxyAlert();
           },
 
-          // 打开Kiro常见问题处理页面
+          // 打开Cursor常见问题处理页面
           openHelpPage() {
             try {
               // 使用Electron的shell模块打开外部链接
-              ipcRenderer.invoke('open-external-url', 'https://www.yuque.com/dongxiao-f0zme/zfsfkt/ghxy13v7uke241ly?singleDoc#');
-              console.log('打开Kiro常见问题处理页面');
+              ipcRenderer.invoke('open-external-url', 'https://www.yuque.com/dongxiao-f0zme/vx4792/riokg8t7d2dyz3ca?singleDoc#');
+              console.log('打开Cursor常见问题处理页面');
             } catch (error) {
               console.error('打开帮助页面失败:', error);
               ElMessage.error('打开帮助页面失败: ' + error.message);
@@ -4218,6 +4168,41 @@
             }
           },
 
+          // 检查地区限制突破状态
+          async checkRegionUnlockStatus() {
+            try {
+              console.log('检查地区限制突破开关状态...');
+              const result = await ipcRenderer.invoke('check-cursor-settings-status');
+              
+              if (result.success) {
+                // 使用标志位防止触发watch
+                this.isUpdatingRegionUnlock = true;
+                
+                // 只有在卡密已验证的情况下，才根据settings.json的实际状态设置开关
+                // 如果卡密未验证，强制关闭开关
+                if (this.cardVerified) {
+                  this.enableRegionUnlock = result.enabled;
+                  console.log(`地区限制突破状态: ${result.enabled ? '已开启' : '已关闭'}`);
+                } else {
+                  this.enableRegionUnlock = false;
+                  console.log('卡密未验证，强制关闭地区限制突破开关');
+                }
+                
+                this.$nextTick(() => {
+                  this.isUpdatingRegionUnlock = false;
+                });
+              }
+            } catch (error) {
+              console.error('检查地区限制突破状态失败:', error);
+              // 出错时默认关闭
+              this.isUpdatingRegionUnlock = true;
+              this.enableRegionUnlock = false;
+              this.$nextTick(() => {
+                this.isUpdatingRegionUnlock = false;
+              });
+            }
+          },
+
           // 自动关闭代理配置（卡密验证失败时调用）
           async autoDisableProxy(reason = '卡密验证失败') {
             try {
@@ -4238,10 +4223,68 @@
               this.remainingAccounts = 0;
               this.cardCode = '';
               console.log('✓ 卡密有效期信息已清空');
-
-              console.log('✓ 相关功能已全部禁用');
+              
+              // 3. 关闭开关（使用标志位防止触发watch）
+              this.isUpdatingRegionUnlock = true;
+              this.enableRegionUnlock = false;
+              this.$nextTick(() => {
+                this.isUpdatingRegionUnlock = false;
+              });
+              console.log('✓ 突破地区限制开关已禁用');
+              
+              // 4. 调用后端更新settings.json为基础配置
+              const result = await ipcRenderer.invoke('update-cursor-settings', false);
+              
+              if (result.success) {
+                console.log('✓ settings.json已恢复为基础配置');
+              } else {
+                console.warn('⚠ 关闭代理配置失败，但不影响流程');
+              }
+              
+              console.log('✓ 代理配置和相关功能已全部禁用');
             } catch (error) {
-              console.error('自动清理失败:', error);
+              console.error('自动关闭代理失败:', error);
+            }
+          },
+
+          // 更新Cursor设置
+          async updateCursorSettings(enabled) {
+            try {
+              const result = await ipcRenderer.invoke('update-cursor-settings', enabled);
+              if (result.success) {
+                // 显示成功消息，如果是开启且有代理信息，显示代理地址
+                if (enabled && result.config) {
+                  ElMessage({
+                    type: 'success',
+                    message: result.message,
+                    duration: 4000,
+                    showClose: true
+                  });
+                } else {
+                  ElMessage.success(result.message);
+                }
+              } else {
+                // 如果未找到settings.json，显示特殊提示
+                if (result.message) {
+                  ElMessage({
+                    type: 'warning',
+                    message: result.message,
+                    duration: 5000,
+                    showClose: true
+                  });
+                  // 自动关闭开关（使用标志位防止循环触发）
+                  this.isUpdatingRegionUnlock = true;
+                  this.enableRegionUnlock = false;
+                  this.$nextTick(() => {
+                    this.isUpdatingRegionUnlock = false;
+                  });
+                } else {
+                  ElMessage.error(`设置失败: ${result.error}`);
+                }
+              }
+            } catch (error) {
+              console.error('更新Cursor设置失败:', error);
+              ElMessage.error(`更新设置失败: ${error.message}`);
             }
           },
 
@@ -4376,111 +4419,59 @@
               console.error('打开下载链接失败:', error);
               ElMessage.error('打开下载链接失败: ' + error.message);
             }
-          },
-
-          // 协议内容滚动事件处理
-          onAgreementScroll(event) {
-            const element = event.target;
-            // 检查是否滚动到底部（允许5像素的误差）
-            const isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 5;
-            if (isAtBottom && !this.agreementScrolledToBottom) {
-              this.agreementScrolledToBottom = true;
-              console.log('用户已滚动到协议底部');
-            }
-          },
-
-          // 检查并显示用户协议
-          async checkAndShowAgreement() {
-            try {
-              console.log('正在检查用户协议同意状态...');
-              // 重置滚动状态
-              this.agreementScrolledToBottom = false;
-              this.agreementChecked = false;
-              const result = await ipcRenderer.invoke('check-agreement-status');
-              
-              if (result.agreed) {
-                console.log('用户已同意协议，时间:', result.agreedAt);
-                this.agreementAgreed = true;
-                return true; // 已同意，继续初始化
-              } else {
-                console.log('用户尚未同意协议，显示协议弹窗');
-                this.showAgreementDialog = true;
-                // 隐藏加载遮罩，显示协议弹窗
-                this.hideLoadingOverlay();
-                return false; // 未同意，暂停初始化
-              }
-            } catch (error) {
-              console.error('检查协议状态失败:', error);
-              // 出错时也显示协议弹窗
-              this.showAgreementDialog = true;
-              this.hideLoadingOverlay();
-              return false;
-            }
-          },
-
-          // 用户同意协议
-          async acceptAgreement() {
-            if (!this.agreementChecked) {
-              ElMessage.warning('请先勾选"已阅读"复选框');
-              return;
-            }
-
-            try {
-              console.log('用户同意协议，正在保存...');
-              const saved = await ipcRenderer.invoke('save-agreement-status', true);
-              
-              if (saved) {
-                this.agreementAgreed = true;
-                this.showAgreementDialog = false;
-                ElMessage.success('感谢您的信任！');
-                
-                // 继续初始化流程
-                await this.continueInitAfterAgreement();
-              } else {
-                ElMessage.error('保存协议状态失败，请重试');
-              }
-            } catch (error) {
-              console.error('保存协议状态失败:', error);
-              ElMessage.error('保存协议状态失败: ' + error.message);
-            }
-          },
-
-          // 用户拒绝协议
-          rejectAgreement() {
-            console.log('用户拒绝协议，退出程序');
-            ElMessage.warning('您已拒绝协议，程序即将退出');
-            
-            // 延迟退出，让用户看到提示
-            setTimeout(() => {
-              ipcRenderer.send('close-window');
-            }, 1500);
-          },
-
-          // 协议同意后继续初始化
-          async continueInitAfterAgreement() {
-            try {
-              // 获取并显示启动弹窗
-              this.updateLoadingStatus('正在加载弹窗信息...', '获取最新通知...');
-              await this.loadAndShowPopup();
-
-              // 获取程序权限信息
-              this.updateLoadingStatus('正在检查权限...', '验证程序权限状态...');
-              await this.loadPermissionInfo();
-
-              // 检查版本更新
-              this.updateLoadingStatus('正在检查更新...', '获取最新版本信息...');
-              await this.checkVersionUpdate();
-
-              // 所有初始化完成
-              this.updateLoadingStatus('初始化完成！', '正在进入应用...');
-              
-              console.log('初始化流程完成');
-            } catch (error) {
-              console.error('继续初始化失败:', error);
-            }
           }
         },
         watch: {
+          // 监听突破地区限制开关变化
+          enableRegionUnlock(newValue) {
+            // 防止循环触发
+            if (this.isUpdatingRegionUnlock) {
+              return;
+            }
+            
+            console.log(`突破地区限制开关变化: ${newValue}`);
+            
+            // 如果尝试开启，先验证卡密状态
+            if (newValue && !this.cardVerified) {
+              console.warn('卡密未验证，无法开启地区限制突破');
+              ElMessage({
+                type: 'warning',
+                message: '请先验证卡密后再使用此功能！',
+                duration: 3000,
+                showClose: true
+              });
+              
+              // 自动关闭开关
+              this.isUpdatingRegionUnlock = true;
+              this.enableRegionUnlock = false;
+              this.$nextTick(() => {
+                this.isUpdatingRegionUnlock = false;
+              });
+              return;
+            }
+            
+            // 检查卡密是否过期/失效
+            if (newValue && this.cardExpired) {
+              console.warn('卡密已过期/失效，无法开启地区限制突破');
+              ElMessage({
+                type: 'error',
+                message: `卡密已过期/失效！${this.cardExpiredMessage ? '\n原因: ' + this.cardExpiredMessage : ''}`,
+                duration: 4000,
+                showClose: true
+              });
+              
+              // 自动关闭开关
+              this.isUpdatingRegionUnlock = true;
+              this.enableRegionUnlock = false;
+              this.$nextTick(() => {
+                this.isUpdatingRegionUnlock = false;
+              });
+              return;
+            }
+            
+            // 卡密已验证且有效，继续更新设置
+            this.updateCursorSettings(newValue);
+          }
         }
       }).use(ElementPlus).mount('#app');
     }
