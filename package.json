@@ -46,7 +46,7 @@
   },
   "build": {
     "appId": "com.cursor.renewal",
-    "productName": "CursorRenewal",
+    "productName": "续杯助手",
     "asar": true,
     "asarUnpack": [
       "node_modules/better-sqlite3/**/*"
@@ -92,7 +92,7 @@
       ]
     },
     "portable": {
-      "artifactName": "CursorRenewal.exe",
+      "artifactName": "续杯助手.exe",
       "requestExecutionLevel": "admin"
     },
     "files": [

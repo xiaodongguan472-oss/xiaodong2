@@ -2296,7 +2296,8 @@ function checkCursorRunning() {
         });
       });
     } else if (process.platform === 'darwin') {
-      exec('pgrep -f Cursor', (error, stdout) => {
+      // 检测 /Applications/Cursor.app 相关进程，排除续杯工具
+      exec("ps aux | grep '/Applications/Cursor.app' | grep -v grep | grep -v CursorRenewal", (error, stdout) => {
         resolve(!error && stdout.trim().length > 0);
       });
     } else {
@@ -2325,8 +2326,16 @@ ipcMain.handle('force-close-cursor', async () => {
 
     // 第二步：执行关闭命令
     return new Promise((resolve) => {
-      const killCommand = process.platform === 'win32' ? 'taskkill /F /IM Cursor.exe' :
-                         process.platform === 'darwin' ? 'pkill -9 -x Cursor' : 'pkill -9 cursor';
+      // macOS: 分别关闭Cursor主进程和Helper进程，但不会影响CursorRenewal
+      let killCommand;
+      if (process.platform === 'win32') {
+        killCommand = 'taskkill /F /IM Cursor.exe';
+      } else if (process.platform === 'darwin') {
+        // 使用killall更精确，它匹配完整的进程名
+        killCommand = "killall -9 'Cursor' 2>/dev/null; killall -9 'Cursor Helper' 2>/dev/null; killall -9 'Cursor Helper (Renderer)' 2>/dev/null; killall -9 'Cursor Helper (GPU)' 2>/dev/null; true";
+      } else {
+        killCommand = 'pkill -9 cursor';
+      }
       
       if (logger) logger.info('执行关闭命令', { command: killCommand });
       
@@ -2426,8 +2435,8 @@ ipcMain.handle('restart-cursor-complete', async () => {
             resolve({ success: !error });
           });
         } else if (process.platform === 'darwin') {
-          exec('pkill -9 -x Cursor', (error) => {
-            resolve({ success: !error });
+          exec("killall -9 'Cursor' 2>/dev/null; killall -9 'Cursor Helper' 2>/dev/null; true", (error) => {
+            resolve({ success: true }); // 忽略错误，因为进程可能不存在
           });
         } else {
           exec('pkill -9 cursor', (error) => {
@@ -2848,7 +2857,7 @@ ipcMain.handle('restart-cursor', async (event, cursorPath) => {
 
       // 先关闭现有的Cursor进程
       const { exec } = require('child_process');
-      exec('pkill -9 -x Cursor', (error) => {
+      exec("killall -9 'Cursor' 2>/dev/null; killall -9 'Cursor Helper' 2>/dev/null; true", (error) => {
         if (error) {
           console.log('没有运行中的Cursor进程或无法关闭进程');
         } else {
