@@ -81,13 +81,13 @@
       "uninstallerIcon": "assets/icon.ico"
     },
     "mac": {
-      "icon": "build/icon.icns",
+      "icon": "assets/icon.png",
       "target": [
         "dmg"
       ]
     },
     "linux": {
-      "icon": "build/icon.png",
+      "icon": "assets/icon.png",
       "target": [
         "AppImage"
       ]
