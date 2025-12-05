@@ -386,6 +386,7 @@ function loadSettings() {
   } catch (error) {
     console.error('加载设置失败:', error);
   }
+  return currentSettings;
 }
 
 // 保存设置
@@ -1424,7 +1425,11 @@ async function getCursorPaths() {
         let basePath, packagePath, mainPath, workbenchPath;
 
         // 在Promise内部重新获取设置，避免作用域问题
-        const settings = loadSettings ? loadSettings() : currentSettings;
+        const settings = loadSettings();
+        
+        console.log('=== getCursorPaths 调试信息 ===');
+        console.log('settings:', settings);
+        console.log('customCursorPath:', settings ? settings.customCursorPath : 'settings为空');
         
         // 首先检查是否有自定义路径
         if (settings && settings.customCursorPath && settings.customCursorPath.trim()) {
@@ -1449,10 +1454,15 @@ async function getCursorPaths() {
             customPath = customPath.replace(/\/$/, ''); // 移除末尾斜杠
             basePath = path.join(customPath, 'Contents', 'Resources', 'app');
             console.log('检测到直接指定.app目录，basePath:', basePath);
-          } else if (process.platform === 'win32' && fs.existsSync(path.join(customPath, 'resources', 'app'))) {
-            // Windows: 直接指定Cursor安装目录（包含resources文件夹）
-            basePath = path.join(customPath, 'resources', 'app');
-            console.log('检测到Windows Cursor目录，basePath:', basePath);
+          } else if (process.platform === 'win32') {
+            // Windows: 直接指定Cursor安装目录
+            const winAppPath = path.join(customPath, 'resources', 'app');
+            console.log('检查Windows路径:', winAppPath);
+            console.log('路径存在:', fs.existsSync(winAppPath));
+            if (fs.existsSync(winAppPath)) {
+              basePath = winAppPath;
+              console.log('检测到Windows Cursor目录，basePath:', basePath);
+            }
           } else if (fs.existsSync(path.join(customPath, 'Cursor.app'))) {
             // macOS: 指定的是包含Cursor.app的父目录（如 /Applications）
             basePath = path.join(customPath, 'Cursor.app', 'Contents', 'Resources', 'app');
