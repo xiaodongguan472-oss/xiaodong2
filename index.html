@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>续杯助手</title>
+  <title>Cursor续杯工具</title>
   <script>
     // 检查是否为生产环境并加载对应的CSS
     if (process.env.NODE_ENV === 'production' || window.process?.env?.NODE_ENV === 'production') {
@@ -1824,7 +1824,7 @@
         <circle cx="16" cy="16" r="12" fill="currentColor" opacity="0.8"/>
         <path d="M12 16l4 4 8-8" stroke="white" stroke-width="2" fill="none"/>
       </svg>
-      续杯助手
+      Cursor续杯工具
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-button minimize-btn" onclick="minimizeWindow()">
@@ -1871,7 +1871,7 @@
           </svg>
         </div>
         <div class="app-info" style="position: relative;">
-          <h1>续杯助手</h1>
+          <h1>Cursor续杯工具</h1>
           <!-- 版本更新提示 - 红色感叹号，放在标题右上角 -->
           <span v-if="hasNewVersion" @click="showVersionUpdateDialog"
                 style="position: absolute; top: 33px; right: 80px; width: 14px; height: 14px; background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 8px rgba(255, 68, 68, 0.6);"
