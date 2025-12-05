@@ -2935,9 +2935,21 @@
           async agreeAndContinue() {
             if (!this.agreementChecked) return;
             
-            // 保存协议状态到本地存储
-            localStorage.setItem('agreement_accepted', 'true');
-            localStorage.setItem('agreement_accepted_time', new Date().toISOString());
+            // 保存协议状态到 settings（持久化到 AppData）
+            const acceptedTime = new Date().toISOString();
+            this.settings.agreementAccepted = true;
+            this.settings.agreementAcceptedTime = acceptedTime;
+            
+            try {
+              await ipcRenderer.invoke('save-settings', {
+                ...this.settings,
+                agreementAccepted: true,
+                agreementAcceptedTime: acceptedTime
+              });
+              console.log('协议状态已保存到 settings');
+            } catch (error) {
+              console.error('保存协议状态失败:', error);
+            }
             
             this.hasAgreed = true;
             this.showAgreement = false;
@@ -3005,9 +3017,12 @@
               this.isSelectingPath = false;
               console.log('已重置所有对话框状态');
               
-              // 检查是否已同意协议
-              const agreementAccepted = localStorage.getItem('agreement_accepted');
-              const agreementTime = localStorage.getItem('agreement_accepted_time');
+              // 先加载设置，确保协议状态能正确读取
+              await this.loadAppSettings();
+              
+              // 检查是否已同意协议（从settings读取，更可靠）
+              const agreementAccepted = this.settings.agreementAccepted;
+              const agreementTime = this.settings.agreementAcceptedTime;
               
               // 如果未同意协议或协议超过30天，重新显示协议
               const needShowAgreement = !agreementAccepted || 

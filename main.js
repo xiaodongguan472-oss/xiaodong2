@@ -13,10 +13,17 @@ const http = require('http');
 if (process.platform === 'win32') {
   try {
     execSync('chcp 65001', { stdio: 'ignore' });
+    // 设置环境变量确保子进程也使用 UTF-8
+    process.env.LANG = 'zh_CN.UTF-8';
+    process.env.LC_ALL = 'zh_CN.UTF-8';
   } catch (e) {
     // 忽略错误，某些环境可能不支持
   }
 }
+
+// 设置 Node.js 默认编码
+process.stdout.setDefaultEncoding && process.stdout.setDefaultEncoding('utf8');
+process.stderr.setDefaultEncoding && process.stderr.setDefaultEncoding('utf8');
 
 // 设置 axios 默认请求头（Nginx 验证）
 axios.defaults.headers.common['xxcdndlzs'] = 'curs';
@@ -202,6 +209,14 @@ function createWindow() {
   // 关闭窗口时的处理
   mainWindow.on('closed', () => {
     mainWindow = null;
+    // Windows 上强制退出所有进程，避免后台残留
+    if (process.platform === 'win32') {
+      app.quit();
+      // 延迟强制退出，确保清理完成
+      setTimeout(() => {
+        process.exit(0);
+      }, 100);
+    }
   });
 }
 
@@ -354,13 +369,31 @@ app.on('window-all-closed', () => {
   }
 });
 
+// 应用退出前的清理
+app.on('before-quit', () => {
+  console.log('应用即将退出，清理资源...');
+});
+
+// 应用即将退出时强制结束所有进程
+app.on('will-quit', (event) => {
+  console.log('应用退出中...');
+  // Windows 上确保完全退出
+  if (process.platform === 'win32') {
+    setTimeout(() => {
+      process.exit(0);
+    }, 50);
+  }
+});
+
 // 定义默认设置
 const defaultSettings = {
   autoCheckUpdate: true,
   autoActivateOnStartup: false,
   debugMode: false,
   forceModifyMode: false,
-  customCursorPath: '' // 自定义Cursor安装路径
+  customCursorPath: '', // 自定义Cursor安装路径
+  agreementAccepted: false, // 是否已同意用户协议
+  agreementAcceptedTime: null // 同意协议的时间
 };
 
 // 当前设置
@@ -448,7 +481,9 @@ ipcMain.handle('save-settings', (event, settings) => {
       autoActivateOnStartup: Boolean(settings.autoActivateOnStartup),
       debugMode: Boolean(settings.debugMode),
       forceModifyMode: Boolean(settings.forceModifyMode),
-      customCursorPath: String(settings.customCursorPath || '')
+      customCursorPath: String(settings.customCursorPath || ''),
+      agreementAccepted: Boolean(settings.agreementAccepted),
+      agreementAcceptedTime: settings.agreementAcceptedTime || null
     };
 
     saveSettings(validatedSettings);
