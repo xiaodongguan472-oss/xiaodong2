@@ -82,8 +82,12 @@
     "mac": {
       "icon": "assets/icon.png",
       "target": [
-        "dmg"
-      ]
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "artifactName": "续杯助手-${arch}.${ext}"
     },
     "linux": {
       "icon": "assets/icon.png",

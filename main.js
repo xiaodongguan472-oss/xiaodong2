@@ -2,12 +2,21 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const https = require('https');
 const http = require('http');
+
+// 设置 Windows 控制台编码为 UTF-8，解决中文乱码问题
+if (process.platform === 'win32') {
+  try {
+    execSync('chcp 65001', { stdio: 'ignore' });
+  } catch (e) {
+    // 忽略错误，某些环境可能不支持
+  }
+}
 
 // 设置 axios 默认请求头（Nginx 验证）
 axios.defaults.headers.common['xxcdndlzs'] = 'curs';
@@ -1414,24 +1423,41 @@ async function getCursorPaths() {
       try {
         let basePath, packagePath, mainPath, workbenchPath;
 
+        // 在Promise内部重新获取设置，避免作用域问题
+        const settings = loadSettings ? loadSettings() : currentSettings;
+        
         // 首先检查是否有自定义路径
-        if (currentSettings.customCursorPath && currentSettings.customCursorPath.trim()) {
+        if (settings && settings.customCursorPath && settings.customCursorPath.trim()) {
           // 使用自定义路径
-          const customPath = currentSettings.customCursorPath.trim();
+          let customPath = settings.customCursorPath.trim();
+          
+          // 自动去除用户输入的引号
+          if ((customPath.startsWith("'") && customPath.endsWith("'")) ||
+              (customPath.startsWith('"') && customPath.endsWith('"'))) {
+            customPath = customPath.slice(1, -1);
+            console.log('去除了路径中的引号');
+          }
+          
           console.log(`使用自定义Cursor路径: ${customPath}`);
 
-          // 检查自定义路径是否是Cursor安装目录
-          if (fs.existsSync(path.join(customPath, 'Cursor.exe')) ||
-              fs.existsSync(path.join(customPath, 'Cursor.app')) ||
-              fs.existsSync(path.join(customPath, 'cursor'))) {
-            // 这是Cursor的安装根目录，需要找到resources/app
-            if (process.platform === 'win32') {
-              basePath = path.join(customPath, 'resources', 'app');
-            } else if (process.platform === 'darwin') {
-              basePath = path.join(customPath, 'Contents', 'Resources', 'app');
-            } else {
-              basePath = path.join(customPath, 'resources', 'app');
-            }
+          // macOS: 检查是否直接指定了.app目录
+          const isMacApp = process.platform === 'darwin' && 
+                          (customPath.endsWith('.app') || customPath.endsWith('.app/'));
+          
+          if (isMacApp) {
+            // 直接指定了.app目录（如 /Applications/Cursor.app）
+            customPath = customPath.replace(/\/$/, ''); // 移除末尾斜杠
+            basePath = path.join(customPath, 'Contents', 'Resources', 'app');
+            console.log('检测到直接指定.app目录，basePath:', basePath);
+          } else if (fs.existsSync(path.join(customPath, 'Cursor.exe'))) {
+            // Windows: 指定的是包含Cursor.exe的目录
+            basePath = path.join(customPath, 'resources', 'app');
+          } else if (fs.existsSync(path.join(customPath, 'Cursor.app'))) {
+            // macOS: 指定的是包含Cursor.app的父目录（如 /Applications）
+            basePath = path.join(customPath, 'Cursor.app', 'Contents', 'Resources', 'app');
+          } else if (fs.existsSync(path.join(customPath, 'cursor'))) {
+            // Linux
+            basePath = path.join(customPath, 'resources', 'app');
           } else if (fs.existsSync(path.join(customPath, 'package.json'))) {
             // 这可能直接是resources/app目录
             basePath = customPath;
@@ -2233,14 +2259,10 @@ ipcMain.handle('check-cursor-running', async () => {
           });
         });
       } else if (process.platform === 'darwin') {
-        // macOS系统
-        exec('pgrep -f Cursor', (error, stdout) => {
-          if (error) {
-            console.log('Cursor运行状态: 未运行');
-            resolve(false);
-            return;
-          }
-          const isRunning = stdout.trim().length > 0;
+        // macOS系统 - 使用精确路径匹配，排除系统CursorUIViewService和续杯工具自身
+        const cursorPath = getMacCursorAppPath();
+        exec(`ps aux | grep '${cursorPath}' | grep -v grep | grep -v 'cursor-renewal'`, (error, stdout) => {
+          const isRunning = !error && stdout.trim().length > 0;
           console.log(`Cursor运行状态: ${isRunning ? '运行中' : '未运行'}`);
           resolve(isRunning);
         });
@@ -2269,6 +2291,33 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// 获取 macOS 上 Cursor 的安装路径（从设置中读取或使用默认路径）
+function getMacCursorAppPath() {
+  const defaultPath = '/Applications/Cursor.app';
+  try {
+    // 尝试从设置中读取自定义路径
+    if (currentSettings && currentSettings.customCursorPath) {
+      let customPath = currentSettings.customCursorPath.trim();
+      // 去除可能的引号
+      if ((customPath.startsWith("'") && customPath.endsWith("'")) ||
+          (customPath.startsWith('"') && customPath.endsWith('"'))) {
+        customPath = customPath.slice(1, -1);
+      }
+      // 确保路径以 .app 结尾
+      if (customPath && (customPath.endsWith('.app') || customPath.endsWith('.app/'))) {
+        // 移除末尾的斜杠
+        customPath = customPath.replace(/\/$/, '');
+        console.log('使用自定义Cursor路径:', customPath);
+        return customPath;
+      }
+    }
+  } catch (e) {
+    console.warn('读取自定义Cursor路径失败:', e.message);
+  }
+  console.log('使用默认Cursor路径:', defaultPath);
+  return defaultPath;
+}
+
 // 检查Cursor进程是否还在运行（增强版 - 用于验证关闭）
 function checkCursorRunning() {
   return new Promise((resolve) => {
@@ -2293,8 +2342,9 @@ function checkCursorRunning() {
         });
       });
     } else if (process.platform === 'darwin') {
-      // 检测 /Applications/Cursor.app 相关进程，排除续杯工具
-      exec("ps aux | grep '/Applications/Cursor.app' | grep -v grep | grep -v CursorRenewal", (error, stdout) => {
+      // 检测自定义或默认Cursor.app路径的相关进程，排除续杯工具
+      const cursorPath = getMacCursorAppPath();
+      exec(`ps aux | grep '${cursorPath}' | grep -v grep | grep -v CursorRenewal | grep -v 'cursor-renewal'`, (error, stdout) => {
         resolve(!error && stdout.trim().length > 0);
       });
     } else {
@@ -2327,8 +2377,9 @@ ipcMain.handle('force-close-cursor', async () => {
       if (process.platform === 'win32') {
         killCommand = 'taskkill /F /IM Cursor.exe';
       } else if (process.platform === 'darwin') {
-        // 使用killall更精确，它匹配完整的进程名
-        killCommand = "killall -9 'Cursor' 2>/dev/null; killall -9 'Cursor Helper' 2>/dev/null; killall -9 'Cursor Helper (Renderer)' 2>/dev/null; killall -9 'Cursor Helper (GPU)' 2>/dev/null; true";
+        // 先尝试优雅关闭，再强制关闭所有Cursor.app相关进程（使用动态路径）
+        const cursorPath = getMacCursorAppPath();
+        killCommand = `osascript -e 'quit app "Cursor"' 2>/dev/null; sleep 1; pkill -9 -f '${cursorPath}' 2>/dev/null; true`;
       } else {
         killCommand = 'pkill -9 cursor';
       }
@@ -2409,7 +2460,9 @@ ipcMain.handle('restart-cursor-complete', async () => {
           resolve(!error && stdout.includes('Cursor.exe'));
         });
       } else if (process.platform === 'darwin') {
-        exec('pgrep -f Cursor', (error, stdout) => {
+        // macOS - 使用动态路径匹配，排除系统CursorUIViewService和续杯工具
+        const cursorPath = getMacCursorAppPath();
+        exec(`ps aux | grep '${cursorPath}' | grep -v grep | grep -v 'cursor-renewal'`, (error, stdout) => {
           resolve(!error && stdout.trim().length > 0);
         });
       } else {
@@ -2429,7 +2482,9 @@ ipcMain.handle('restart-cursor-complete', async () => {
             resolve({ success: !error });
           });
         } else if (process.platform === 'darwin') {
-          exec("killall -9 'Cursor' 2>/dev/null; killall -9 'Cursor Helper' 2>/dev/null; true", (error) => {
+          // 先优雅关闭，再强制关闭所有Cursor.app相关进程（使用动态路径）
+          const cursorPath = getMacCursorAppPath();
+          exec(`osascript -e 'quit app "Cursor"' 2>/dev/null; sleep 1; pkill -9 -f '${cursorPath}' 2>/dev/null; true`, (error) => {
             resolve({ success: true }); // 忽略错误，因为进程可能不存在
           });
         } else {

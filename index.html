@@ -3787,13 +3787,25 @@
           // 保存设置
           async saveSettings() {
             try {
+              // 清理自定义路径：去除空格和引号
+              let cleanPath = this.tempSettings.customCursorPath || '';
+              if (cleanPath) {
+                cleanPath = cleanPath.trim();
+                // 去除开头和结尾的引号
+                if ((cleanPath.startsWith("'") && cleanPath.endsWith("'")) ||
+                    (cleanPath.startsWith('"') && cleanPath.endsWith('"'))) {
+                  cleanPath = cleanPath.slice(1, -1);
+                  console.log('已自动去除路径中的引号');
+                }
+              }
+              
               // 创建纯数据对象，避免序列化问题
               const settingsToSave = {
                 autoCheckUpdate: this.tempSettings.autoCheckUpdate || false,
                 autoActivateOnStartup: this.tempSettings.autoActivateOnStartup || false,
                 debugMode: this.tempSettings.debugMode || false,
                 forceModifyMode: this.tempSettings.forceModifyMode || false,
-                customCursorPath: this.tempSettings.customCursorPath || ''
+                customCursorPath: cleanPath
               };
 
               console.log('准备保存设置:', settingsToSave);
