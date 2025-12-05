@@ -1449,13 +1449,10 @@ async function getCursorPaths() {
             customPath = customPath.replace(/\/$/, ''); // 移除末尾斜杠
             basePath = path.join(customPath, 'Contents', 'Resources', 'app');
             console.log('检测到直接指定.app目录，basePath:', basePath);
-          } else if (process.platform === 'win32' && 
-                     (fs.existsSync(path.join(customPath, 'Cursor.exe')) || 
-                      fs.existsSync(path.join(customPath, 'cursor.exe')) ||
-                      fs.existsSync(path.join(customPath, 'resources', 'app', 'package.json')))) {
-            // Windows: 指定的是Cursor安装目录（包含Cursor.exe或resources/app）
+          } else if (process.platform === 'win32' && fs.existsSync(path.join(customPath, 'resources', 'app'))) {
+            // Windows: 直接指定Cursor安装目录（包含resources文件夹）
             basePath = path.join(customPath, 'resources', 'app');
-            console.log('检测到Windows Cursor安装目录，basePath:', basePath);
+            console.log('检测到Windows Cursor目录，basePath:', basePath);
           } else if (fs.existsSync(path.join(customPath, 'Cursor.app'))) {
             // macOS: 指定的是包含Cursor.app的父目录（如 /Applications）
             basePath = path.join(customPath, 'Cursor.app', 'Contents', 'Resources', 'app');
