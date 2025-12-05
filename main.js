@@ -143,7 +143,7 @@ function createWindow() {
   if (process.platform === 'win32') {
     try {
       // 强制设置控制台输出编码
-      process.stdout.write('\x1b]0;Cursor续杯工具\x07'); // 设置窗口标题
+      process.stdout.write('\x1b]0;续杯助手\x07'); // 设置窗口标题
       console.log('Windows控制台编码优化完成');
     } catch (error) {
       // 忽略编码设置错误
@@ -321,7 +321,7 @@ app.whenReady().then(async () => {
   setTimeout(() => {
     console.log('=== 中文编码测试 ===');
     console.log('应用启动成功！');
-    console.log('Cursor续杯工具初始化完成');
+    console.log('续杯助手初始化完成');
     console.log('如果您能看到这些中文字符，说明编码问题已修复');
     console.log('===================');
   }, 1000);
@@ -354,7 +354,7 @@ app.whenReady().then(async () => {
   // 添加关于菜单(macOS)
   if (process.platform === 'darwin') {
     app.setAboutPanelOptions({
-      applicationName: 'Cursor续杯工具',
+      applicationName: '续杯助手',
       applicationVersion: app.getVersion(),
       version: app.getVersion(),
       copyright: '© 2023 All Rights Reserved'
