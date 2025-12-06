@@ -10,6 +10,9 @@ on:
 jobs:
   build-mac:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
     
     steps:
       - name: Checkout code
@@ -29,22 +32,24 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts
       
-      - name: Rebuild native modules for macOS
+      - name: Rebuild native modules for ${{ matrix.arch }}
         run: |
-          npm rebuild better-sqlite3
+          npm rebuild better-sqlite3 --arch=${{ matrix.arch }}
+        env:
+          npm_config_arch: ${{ matrix.arch }}
       
-      - name: Build macOS App
-        run: npm run build:mac
+      - name: Build macOS App for ${{ matrix.arch }}
+        run: npx electron-builder --mac --${{ matrix.arch }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: List build outputs
         run: ls -la dist/
       
-      - name: Upload macOS artifacts
+      - name: Upload macOS ${{ matrix.arch }} artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-build
+          name: macos-${{ matrix.arch }}-build
           path: |
             dist/*.dmg
             dist/*.zip
