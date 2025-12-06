@@ -38,6 +38,9 @@ jobs:
         env:
           npm_config_arch: ${{ matrix.arch }}
       
+      - name: Clean dist folder
+        run: rm -rf dist/
+      
       - name: Build macOS App for ${{ matrix.arch }}
         run: npx electron-builder --mac --${{ matrix.arch }}
         env:
@@ -51,8 +54,8 @@ jobs:
         with:
           name: macos-${{ matrix.arch }}-build
           path: |
-            dist/*.dmg
-            dist/*.zip
+            dist/*-${{ matrix.arch }}.dmg
+            dist/*-${{ matrix.arch }}-*.zip
           retention-days: 30
 
   build-windows:
